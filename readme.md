@@ -66,7 +66,7 @@ lab_device_system/
 │  ├─ user_side.md                   # 用户侧 API 文档
 │  └─ admin_side.md                  # 管理端 API 文档
 ├─ sql/                              # SQL 脚本
-│  └─ admin_schema.sql               # 管理员表结构
+│  └─ init.sql                       # 完整初始化脚本（建库+建表+示例数据）
 ├─ resources/                        # 项目资源文档
 │  ├─ 总体规划.md
 │  └─ 软件项目管理综合实践要求.md
@@ -162,12 +162,20 @@ CREATE DATABASE IF NOT EXISTS lab_device_system DEFAULT CHARSET utf8mb4 COLLATE 
 ### 2. 导入表结构
 
 ```bash
-# 导入主业务表
-mysql -u root -p lab_device_system < db.sql
+# 方法一：使用 sql/init.sql（推荐，包含建库、建表、示例数据）
+mysql -u root -p < sql/init.sql
 
-# 导入管理员表（如有单独文件）
-mysql -u root -p lab_device_system < sql/admin_schema.sql
+# 方法二：手动导入（如已有 db.sql）
+mysql -u root -p lab_device_system < db.sql
 ```
+
+**方法三：使用 phpMyAdmin（图形界面）**
+
+1. 打开 phpMyAdmin（通常地址为 `http://localhost/phpmyadmin`）
+2. 点击顶部的 **"导入"** 选项卡
+3. 点击 **"选择文件"**，选择 `sql/init.sql` 文件
+4. 保持默认设置，点击 **"执行"** 按钮
+5. 等待导入完成，即可看到 `lab_device_system` 数据库及相关表
 
 ### 3. 配置数据库连接
 
@@ -229,6 +237,42 @@ php -S 0.0.0.0:8080 -t .
 | `admin/index.php` | 管理端测试页，覆盖管理员登录、设备管理、预约审批、借用管理、统计报表等功能 |
 
 两个测试页均使用 Bootstrap 5.x，UI 简洁，所有请求默认 JSON 格式，前端自动附带 `Authorization: Bearer <token>`。
+
+---
+
+## 原型设计参考
+
+项目包含完整的 HTML 原型，位于 `prototype/` 目录，使用 Bootstrap 5 + Font Awesome 构建，可直接在浏览器中查看。
+
+### 原型入口
+
+| 入口 | 路径 |
+| --- | --- |
+| 用户登录页 | `prototype/index.html` |
+| 管理员登录页 | `prototype/admin/index.html` |
+
+### 用户侧页面 (`prototype/user/`)
+
+| 页面 | 文件 | 说明 |
+| --- | --- | --- |
+| 设备列表 | `device_list.html` | 浏览、搜索设备 |
+| 设备详情 | `device_detail.html` | 查看设备详情、发起预约 |
+| 我的预约 | `reservation.html` | 查看预约状态 |
+| 借用记录 | `borrow.html` | 查看借用历史 |
+| 缴费中心 | `payment.html` | 查看待缴费用 |
+| 个人中心 | `profile.html` | 个人信息维护 |
+
+### 管理端页面 (`prototype/admin/`)
+
+| 页面 | 文件 | 说明 |
+| --- | --- | --- |
+| 仪表盘 | `dashboard.html` | 统计概览 |
+| 设备管理 | `device.html` | 设备台账 CRUD |
+| 预约审批 | `reservation.html` | 审批借用申请 |
+| 借用管理 | `borrow.html` | 借用/归还操作 |
+| 收费管理 | `payment.html` | 费用确认 |
+
+> 💡 **提示**：原型数据由 `prototype/js/data.js` 提供模拟，无需后端即可预览交互效果。
 
 ---
 
