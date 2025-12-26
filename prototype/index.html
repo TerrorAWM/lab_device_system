@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,6 +9,7 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="css/style.css" rel="stylesheet">
 </head>
+
 <body>
     <div class="login-container">
         <div class="login-card">
@@ -22,7 +24,7 @@
                     <label class="form-label">密码</label>
                     <input type="password" class="form-control" id="password" placeholder="请输入密码" required>
                 </div>
-                <button type="submit" class="btn btn-primary w-100">登 录</button>
+                <button type="submit" class="btn btn-primary w-100 mt-4">登 录</button>
             </form>
             <div class="text-center mt-4">
                 <a href="admin/index.html" class="text-muted">管理员入口 <i class="fas fa-arrow-right"></i></a>
@@ -35,7 +37,7 @@
     <script src="js/data.js"></script>
     <script src="js/app.js"></script>
     <script>
-        document.getElementById('loginForm').addEventListener('submit', function(e) {
+        document.getElementById('loginForm').addEventListener('submit', function (e) {
             e.preventDefault();
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
@@ -49,4 +51,5 @@
         });
     </script>
 </body>
+
 </html>
