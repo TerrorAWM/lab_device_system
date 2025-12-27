@@ -130,7 +130,8 @@
         let currentType = 'all';
 
         if (admin) {
-            document.getElementById('adminName').textContent = admin.name;
+            document.getElementById('adminName').textContent = admin.name + ' (' + App.getAdminRoleName(admin.role) + ')';
+            App.renderAdminSidebar(admin.role, 'user');
             render();
 
             // Tab click handlers

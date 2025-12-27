@@ -124,7 +124,8 @@
     <script>
         const admin = App.checkAdminAuth();
         if (admin) {
-            document.getElementById('adminName').textContent = admin.name;
+            document.getElementById('adminName').textContent = admin.name + ' (' + App.getAdminRoleName(admin.role) + ')';
+            App.renderAdminSidebar(admin.role, 'maintenance');
             render();
         }
 

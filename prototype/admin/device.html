@@ -92,7 +92,11 @@
     <script src="../js/app.js"></script>
     <script>
         const admin = App.checkAdminAuth();
-        if (admin) { document.getElementById('adminName').textContent = admin.name; render(); }
+        if (admin) {
+            document.getElementById('adminName').textContent = admin.name + ' (' + App.getAdminRoleName(admin.role) + ')';
+            App.renderAdminSidebar(admin.role, 'device');
+            render();
+        }
         function render() {
             document.getElementById('deviceList').innerHTML = MockData.devices.map(d => `
                 <tr>

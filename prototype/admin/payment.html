@@ -71,7 +71,11 @@
     <script src="../js/app.js"></script>
     <script>
         const admin = App.checkAdminAuth();
-        if (admin) { document.getElementById('adminName').textContent = admin.name; render(); }
+        if (admin) {
+            document.getElementById('adminName').textContent = admin.name + ' (' + App.getAdminRoleName(admin.role) + ')';
+            App.renderAdminSidebar(admin.role, 'payment');
+            render();
+        }
         function render() {
             const list = DataService.getAllPayments();
             const paid = list.filter(p => p.status === 'paid').reduce((s, p) => s + p.amount, 0);

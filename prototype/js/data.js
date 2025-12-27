@@ -20,8 +20,21 @@ const MockData = {
         { id: 10, username: '李研究员', password: '123456', phone: '13900000003', type: 'external', realName: '李芳', organization: '中国科学院' }
     ],
     admins: [
-        { id: 1, username: 'admin', password: 'admin123', role: 'supervisor', name: '系统管理员' }
+        { id: 1, username: 'supervisor', password: 'admin123', role: 'supervisor', name: '王主任' },
+        { id: 2, username: 'device', password: '123456', role: 'device', name: '赵设备员' },
+        { id: 3, username: 'finance', password: '123456', role: 'finance', name: '张财务' }
     ],
+    adminRoles: {
+        supervisor: { name: '实验室负责人', level: 1, permissions: ['dashboard', 'device', 'reservation', 'borrow', 'payment', 'user', 'maintenance', 'reports'] },
+        device: { name: '设备管理员', level: 2, permissions: ['dashboard', 'device', 'reservation', 'borrow', 'maintenance'] },
+        finance: { name: '财务管理员', level: 3, permissions: ['dashboard', 'reservation', 'payment', 'reports'] }
+    },
+    // 审批流程定义
+    approvalWorkflows: {
+        student: ['teacher', 'device', 'supervisor'],   // 学生 → 导师 → 设备管理员 → 实验室负责人
+        teacher: ['device', 'supervisor'],               // 教师 → 设备管理员 + 实验室负责人（同步）
+        external: ['device', 'supervisor', 'finance']    // 校外 → 设备管理员 + 实验室负责人（同步）→ 财务（需付款）
+    },
     devices: [
         { id: 1, name: '示波器 A-001', category: '测量仪器', model: 'Tektronix TBS1102C', status: 0, location: '实验室A301', price: 50 },
         { id: 2, name: '万用表 B-002', category: '测量仪器', model: 'Fluke 17B+', status: 0, location: '实验室A301', price: 10 },
@@ -29,25 +42,78 @@ const MockData = {
         { id: 4, name: '电源供应器 D-004', category: '电源设备', model: 'KORAD KA3005D', status: 1, location: '实验室A302', price: 20 },
         { id: 5, name: '逻辑分析仪 E-005', category: '分析仪器', model: 'Saleae Logic Pro 16', status: 2, location: '实验室A303', price: 80 }
     ],
+    // 预约数据 - 10条记录，与payments关联
     reservations: [
-        { id: 1, userId: 1, deviceId: 4, date: '2024-12-25', timeSlot: '08:00-10:00', status: 'approved', reason: '课程实验使用' },
-        { id: 2, userId: 3, deviceId: 1, date: '2024-12-28', timeSlot: '10:00-12:00', status: 'pending', reason: '毕业设计测试' },
-        { id: 3, userId: 4, deviceId: 2, date: '2024-12-29', timeSlot: '14:00-16:00', status: 'pending', reason: '课程实验' },
-        { id: 4, userId: 8, deviceId: 3, date: '2024-12-30', timeSlot: '08:00-10:00', status: 'pending', reason: '企业项目测试' },
-        { id: 5, userId: 9, deviceId: 1, date: '2024-12-31', timeSlot: '14:00-16:00', status: 'pending', reason: '科研合作项目' },
-        { id: 6, userId: 1, deviceId: 2, date: '2024-12-20', timeSlot: '10:00-12:00', status: 'rejected', reason: '时间冲突' },
-        { id: 7, userId: 7, deviceId: 5, date: '2025-01-02', timeSlot: '16:00-18:00', status: 'pending', reason: '研究院合作' }
+        // 1. 教师预约 - 已全部通过
+        {
+            id: 1, userId: 1, deviceId: 1, date: '2024-12-20', timeSlot: '08:00-10:00', status: 'approved', reason: '课程实验使用',
+            approvals: { device: 'approved', supervisor: 'approved' }
+        },
+        // 2. 教师预约 - 设备已批，负责人待批
+        {
+            id: 2, userId: 2, deviceId: 2, date: '2024-12-21', timeSlot: '10:00-12:00', status: 'pending', reason: '科研项目',
+            approvals: { device: 'approved', supervisor: 'pending' }
+        },
+        // 3. 学生预约 - 导师已批，设备和负责人待批
+        {
+            id: 3, userId: 3, deviceId: 1, date: '2024-12-22', timeSlot: '14:00-16:00', status: 'pending', reason: '毕业设计测试',
+            approvals: { teacher: 'approved', device: 'pending', supervisor: 'pending' }
+        },
+        // 4. 学生预约 - 待导师审批
+        {
+            id: 4, userId: 4, deviceId: 3, date: '2024-12-23', timeSlot: '16:00-18:00', status: 'pending', reason: '课程实验',
+            approvals: { teacher: 'pending', device: 'pending', supervisor: 'pending' }
+        },
+        // 5. 学生预约 - 全部通过
+        {
+            id: 5, userId: 5, deviceId: 2, date: '2024-12-24', timeSlot: '08:00-10:00', status: 'approved', reason: '大创项目实验',
+            approvals: { teacher: 'approved', device: 'approved', supervisor: 'approved' }
+        },
+        // 6. 学生预约 - 被导师驳回
+        {
+            id: 6, userId: 6, deviceId: 4, date: '2024-12-25', timeSlot: '10:00-12:00', status: 'rejected', reason: '个人学习',
+            approvals: { teacher: 'rejected', device: 'pending', supervisor: 'pending' }, rejectReason: '申请理由不充分'
+        },
+        // 7. 校外人员预约 - 待设备和负责人审批
+        {
+            id: 7, userId: 8, deviceId: 3, date: '2024-12-26', timeSlot: '14:00-16:00', status: 'pending', reason: '企业项目测试',
+            approvals: { device: 'pending', supervisor: 'pending', finance: 'waiting' }
+        },
+        // 8. 校外人员预约 - 设备和负责人已批，待财务审批（未付款）
+        {
+            id: 8, userId: 9, deviceId: 1, date: '2024-12-27', timeSlot: '16:00-18:00', status: 'pending', reason: '科研合作项目',
+            approvals: { device: 'approved', supervisor: 'approved', finance: 'pending' }
+        },
+        // 9. 校外人员预约 - 财务待审批（已付款）
+        {
+            id: 9, userId: 10, deviceId: 5, date: '2024-12-28', timeSlot: '08:00-10:00', status: 'pending', reason: '研究院实验',
+            approvals: { device: 'approved', supervisor: 'approved', finance: 'pending' }
+        },
+        // 10. 校外人员预约 - 全部通过
+        {
+            id: 10, userId: 8, deviceId: 2, date: '2024-12-29', timeSlot: '10:00-12:00', status: 'approved', reason: '产品质检',
+            approvals: { device: 'approved', supervisor: 'approved', finance: 'approved' }
+        }
     ],
     borrowRecords: [
-        { id: 1, userId: 1, deviceId: 4, date: '2024-12-25', timeSlot: '08:00-10:00', actualReturn: null, status: 'borrowing' },
-        { id: 2, userId: 3, deviceId: 1, date: '2024-12-10', timeSlot: '10:00-12:00', actualReturn: '2024-12-10 12:00', status: 'returned' },
-        { id: 3, userId: 8, deviceId: 3, date: '2024-12-15', timeSlot: '14:00-16:00', actualReturn: '2024-12-15 16:00', status: 'returned' }
+        { id: 1, userId: 1, deviceId: 1, reservationId: 1, date: '2024-12-20', timeSlot: '08:00-10:00', actualReturn: '2024-12-20 10:00', status: 'returned' },
+        { id: 2, userId: 5, deviceId: 2, reservationId: 5, date: '2024-12-24', timeSlot: '08:00-10:00', actualReturn: null, status: 'borrowing' },
+        { id: 3, userId: 8, deviceId: 2, reservationId: 10, date: '2024-12-29', timeSlot: '10:00-12:00', actualReturn: '2024-12-29 12:00', status: 'returned' }
     ],
     payments: [
-        { id: 1, userId: 1, borrowId: 1, amount: 0, status: 'paid', description: '电源供应器使用2小时（校内免费）' },
-        { id: 2, userId: 3, borrowId: 2, amount: 0, status: 'paid', description: '示波器使用2小时（校内免费）' },
-        { id: 3, userId: 8, borrowId: 3, amount: 60, status: 'paid', description: '信号发生器使用2小时' },
-        { id: 4, userId: 9, borrowId: 4, amount: 100, status: 'unpaid', description: '示波器使用2小时（待支付）' }
+        // 教师 - 0元已支付
+        { id: 1, userId: 1, reservationId: 1, amount: 0, status: 'paid', description: '示波器使用2小时（校内免费）' },
+        { id: 2, userId: 2, reservationId: 2, amount: 0, status: 'paid', description: '万用表使用2小时（校内免费）' },
+        // 学生 - 0元已支付
+        { id: 3, userId: 3, reservationId: 3, amount: 0, status: 'paid', description: '示波器使用2小时（校内免费）' },
+        { id: 4, userId: 4, reservationId: 4, amount: 0, status: 'paid', description: '信号发生器使用2小时（校内免费）' },
+        { id: 5, userId: 5, reservationId: 5, amount: 0, status: 'paid', description: '万用表使用2小时（校内免费）' },
+        { id: 6, userId: 6, reservationId: 6, amount: 0, status: 'paid', description: '电源供应器使用2小时（校内免费）' },
+        // 校外 - 需付费
+        { id: 7, userId: 8, reservationId: 7, amount: 60, status: 'unpaid', description: '信号发生器使用2小时' },
+        { id: 8, userId: 9, reservationId: 8, amount: 100, status: 'unpaid', description: '示波器使用2小时' },
+        { id: 9, userId: 10, reservationId: 9, amount: 160, status: 'paid', description: '逻辑分析仪使用2小时' },
+        { id: 10, userId: 8, reservationId: 10, amount: 20, status: 'paid', description: '万用表使用2小时' }
     ],
     categories: ['全部', '测量仪器', '信号源', '电源设备', '分析仪器'],
     deviceStatus: { 0: { text: '可用', class: 'available' }, 1: { text: '借出', class: 'borrowed' }, 2: { text: '维护中', class: 'maintenance' } },

@@ -58,15 +58,19 @@
     <script src="../js/app.js"></script>
     <script>
         const admin = App.checkAdminAuth();
-        if (admin) { document.getElementById('adminName').textContent = admin.name; render(); }
+        if (admin) {
+            document.getElementById('adminName').textContent = admin.name + ' (' + App.getAdminRoleName(admin.role) + ')';
+            App.renderAdminSidebar(admin.role, 'borrow');
+            render();
+        }
         function render() {
             const list = DataService.getAllBorrows();
             document.getElementById('borrowList').innerHTML = list.map(b => `
                 <tr>
                     <td>${b.user?.username || '-'}</td>
                     <td>${b.device?.name || '-'}</td>
-                    <td>${b.borrowDate}</td>
-                    <td>${b.expectedReturn}</td>
+                    <td>${b.date || b.borrowDate || '-'}</td>
+                    <td>${b.timeSlot || '-'}</td>
                     <td>${b.actualReturn || '-'}</td>
                     <td>${App.renderStatusBadge(MockData.borrowStatus[b.status])}</td>
                     <td>${b.status === 'borrowing' ? `<button class="btn btn-sm btn-success" onclick="confirmReturn(${b.id})">确认归还</button>` : '-'}</td>

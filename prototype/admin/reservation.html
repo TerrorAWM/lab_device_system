@@ -8,6 +8,39 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="../css/style.css" rel="stylesheet">
+    <style>
+        .approval-chain {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .approval-node {
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+        }
+
+        .approval-node.pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .approval-node.approved {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .approval-node.rejected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .approval-node.waiting {
+            background: #e2e3e5;
+            color: #6c757d;
+        }
+    </style>
 </head>
 
 <body>
@@ -16,22 +49,15 @@
             <div class="brand"><i class="fas fa-cogs me-2"></i>管理后台</div>
             <div class="user-info"><span id="adminName">管理员</span>
                 <div class="avatar"><i class="fas fa-user-shield"></i></div>
+                <button class="btn btn-outline btn-sm" onclick="logout()">退出</button>
             </div>
         </nav>
         <div class="d-flex">
-            <aside class="sidebar">
-                <a href="dashboard.html" class="nav-item"><i class="fas fa-tachometer-alt"></i>仪表盘</a>
-                <a href="device.html" class="nav-item"><i class="fas fa-desktop"></i>设备管理</a>
-                <a href="reservation.html" class="nav-item active"><i class="fas fa-calendar-check"></i>预约审批</a>
-                <a href="borrow.html" class="nav-item"><i class="fas fa-hand-holding"></i>借用管理</a>
-                <a href="payment.html" class="nav-item"><i class="fas fa-credit-card"></i>收费管理</a>
-                <a href="user.html" class="nav-item"><i class="fas fa-users"></i>用户管理</a>
-                <a href="maintenance.html" class="nav-item"><i class="fas fa-wrench"></i>设备检修</a>
-                <a href="reports.html" class="nav-item"><i class="fas fa-chart-bar"></i>统计报表</a>
-            </aside>
+            <aside class="sidebar"></aside>
             <main class="content-area">
                 <div class="page-header">
                     <h1>预约审批</h1>
+                    <p class="text-muted" id="roleDesc"></p>
                 </div>
                 <div class="card">
                     <div class="card-body">
@@ -41,10 +67,9 @@
                                     <th>用户</th>
                                     <th>身份</th>
                                     <th>设备</th>
-                                    <th>借用日期</th>
-                                    <th>时段</th>
+                                    <th>日期/时段</th>
                                     <th>原因</th>
-                                    <th>状态</th>
+                                    <th>审批进度</th>
                                     <th>操作</th>
                                 </tr>
                             </thead>
@@ -55,38 +80,231 @@
             </main>
         </div>
     </div>
+
+    <!-- Reject Modal -->
+    <div class="modal-overlay" id="rejectModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>驳回预约</h3>
+                <button class="modal-close" onclick="App.closeModal('rejectModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="rejectId">
+                <div class="form-group">
+                    <label class="form-label">驳回原因</label>
+                    <textarea class="form-control" id="rejectReason" rows="3" placeholder="请填写驳回原因..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="App.closeModal('rejectModal')">取消</button>
+                <button class="btn btn-danger" onclick="confirmReject()">确认驳回</button>
+            </div>
+        </div>
+    </div>
+
     <script src="../js/data.js"></script>
     <script src="../js/app.js"></script>
     <script>
         const admin = App.checkAdminAuth();
-        const typeMap = { teacher: { text: '教师', class: 'approved' }, student: { text: '学生', class: 'pending' }, external: { text: '校外人员', class: 'borrowed' } };
-        if (admin) { document.getElementById('adminName').textContent = admin.name; render(); }
+        const typeMap = {
+            teacher: { text: '教师', class: 'approved' },
+            student: { text: '学生', class: 'pending' },
+            external: { text: '校外', class: 'borrowed' }
+        };
+        const approverNames = {
+            teacher: '导师',
+            device: '设备管理员',
+            supervisor: '实验室负责人',
+            finance: '财务'
+        };
+
+        if (admin) {
+            document.getElementById('adminName').textContent = admin.name + ' (' + App.getAdminRoleName(admin.role) + ')';
+            App.renderAdminSidebar(admin.role, 'reservation');
+
+            // 设置角色描述
+            const roleDescs = {
+                supervisor: '您可以审批所有预约申请',
+                device: '您可以审批设备相关的预约申请',
+                finance: '您可以审批校外人员已完成其他审批且已付款的申请'
+            };
+            document.getElementById('roleDesc').textContent = roleDescs[admin.role] || '';
+
+            render();
+        }
+
         function render() {
             const list = DataService.getAllReservations();
             document.getElementById('reservationList').innerHTML = list.map(r => {
                 const userType = r.user?.type || 'student';
                 const typeInfo = typeMap[userType] || { text: '未知', class: '' };
+                const approvals = r.approvals || {};
+
+                // 生成审批进度显示
+                const approvalChain = Object.entries(approvals).map(([key, status]) => {
+                    const name = approverNames[key] || key;
+                    return `<span class="approval-node ${status}">${name}: ${getStatusText(status)}</span>`;
+                }).join('');
+
+                // 判断当前管理员是否可以审批
+                const canApprove = checkCanApprove(r, admin.role, userType, approvals);
+                const canRejectOnly = checkCanRejectOnly(r, admin.role, userType, approvals);
+
+                // 生成操作按钮
+                let actions = '-';
+                if (r.status === 'pending' && canApprove) {
+                    actions = `
+                        <button class="btn btn-sm btn-success me-1" onclick="approve(${r.id})"><i class="fas fa-check"></i> 批准</button>
+                        <button class="btn btn-sm btn-danger" onclick="openRejectModal(${r.id})"><i class="fas fa-times"></i> 驳回</button>
+                    `;
+                } else if (r.status === 'pending' && canRejectOnly) {
+                    // 财务对未付款的只能驳回
+                    actions = `
+                        <span class="text-warning me-2"><i class="fas fa-exclamation-triangle"></i> 未付款</span>
+                        <button class="btn btn-sm btn-danger" onclick="openRejectModal(${r.id})"><i class="fas fa-times"></i> 驳回</button>
+                    `;
+                } else if (r.status === 'rejected') {
+                    actions = `<span class="text-danger"><i class="fas fa-ban"></i> 已终止</span>`;
+                } else if (r.status === 'approved') {
+                    actions = `<span class="text-success"><i class="fas fa-check-circle"></i> 已完成</span>`;
+                }
+
                 return `
                 <tr>
                     <td>${r.user?.username || '-'}</td>
                     <td><span class="status-badge ${typeInfo.class}">${typeInfo.text}</span></td>
                     <td>${r.device?.name || '-'}</td>
-                    <td>${r.date || r.startDate || '-'}</td>
-                    <td>${r.timeSlot || '-'}</td>
+                    <td>${r.date || '-'}<br><small class="text-muted">${r.timeSlot || ''}</small></td>
                     <td>${r.reason || '-'}</td>
-                    <td>${App.renderStatusBadge(MockData.reservationStatus[r.status])}</td>
-                    <td>${r.status === 'pending' ? `
-                        <button class="btn btn-sm btn-success" onclick="approve(${r.id}, true)"><i class="fas fa-check"></i></button>
-                        <button class="btn btn-sm btn-danger" onclick="approve(${r.id}, false)"><i class="fas fa-times"></i></button>
-                    ` : '-'}</td>
+                    <td><div class="approval-chain">${approvalChain || '-'}</div></td>
+                    <td>${actions}</td>
                 </tr>
             `}).join('');
         }
-        function approve(id, approved) {
-            DataService.approveReservation(id, approved);
-            App.showToast(approved ? '已批准' : '已驳回');
+
+        function getStatusText(status) {
+            const map = { pending: '待审', approved: '已批', rejected: '驳回', waiting: '等待' };
+            return map[status] || status;
+        }
+
+        function checkCanApprove(r, role, userType, approvals) {
+            // 如果已经驳回或批准，不能再审批
+            if (r.status !== 'pending') return false;
+
+            // supervisor 可以审批 supervisor 节点
+            if (role === 'supervisor' && approvals.supervisor === 'pending') {
+                // 学生需要导师先批
+                if (userType === 'student' && approvals.teacher !== 'approved') return false;
+                return true;
+            }
+
+            // device 管理员可以审批 device 节点
+            if (role === 'device' && approvals.device === 'pending') {
+                // 学生需要导师先批
+                if (userType === 'student' && approvals.teacher !== 'approved') return false;
+                return true;
+            }
+
+            // finance 只能审批校外人员，且需要 device 和 supervisor 都已批准，且已付款
+            if (role === 'finance' && approvals.finance === 'pending') {
+                if (userType !== 'external') return false;
+                if (approvals.device !== 'approved' || approvals.supervisor !== 'approved') return false;
+                // 检查付款状态
+                const payment = MockData.payments.find(p => p.reservationId === r.id);
+                if (!payment || payment.status !== 'paid') return false;
+                return true;
+            }
+
+            return false;
+        }
+
+        // 财务对未付款但其他审批已通过的校外预约可以驳回
+        function checkCanRejectOnly(r, role, userType, approvals) {
+            if (r.status !== 'pending') return false;
+            if (role !== 'finance') return false;
+            if (userType !== 'external') return false;
+            if (approvals.finance !== 'pending') return false;
+            if (approvals.device !== 'approved' || approvals.supervisor !== 'approved') return false;
+
+            // 检查付款状态 - 未付款时可以驳回
+            const payment = MockData.payments.find(p => p.reservationId === r.id);
+            if (!payment || payment.status !== 'paid') return true;
+            return false;
+        }
+
+        function approve(id) {
+            const r = MockData.reservations.find(res => res.id === id);
+            if (!r) return;
+
+            // 根据当前管理员角色更新对应审批节点
+            if (admin.role === 'supervisor') r.approvals.supervisor = 'approved';
+            if (admin.role === 'device') r.approvals.device = 'approved';
+            if (admin.role === 'finance') r.approvals.finance = 'approved';
+
+            // 检查是否所有需要的审批都已完成
+            checkAndFinalizeApproval(r);
+
+            App.showToast('已批准');
             render();
         }
+
+        function checkAndFinalizeApproval(r) {
+            const approvals = r.approvals;
+            const userType = MockData.users.find(u => u.id === r.userId)?.type || 'student';
+
+            let allApproved = true;
+            for (const [key, status] of Object.entries(approvals)) {
+                if (status !== 'approved' && status !== 'waiting') {
+                    allApproved = false;
+                    break;
+                }
+            }
+
+            // 对于校外人员，waiting 状态在前置审批完成后变为 pending
+            if (userType === 'external' && approvals.finance === 'waiting') {
+                if (approvals.device === 'approved' && approvals.supervisor === 'approved') {
+                    approvals.finance = 'pending';
+                    allApproved = false;
+                }
+            }
+
+            if (allApproved) {
+                r.status = 'approved';
+            }
+        }
+
+        function openRejectModal(id) {
+            document.getElementById('rejectId').value = id;
+            document.getElementById('rejectReason').value = '';
+            App.openModal('rejectModal');
+        }
+
+        function confirmReject() {
+            const id = parseInt(document.getElementById('rejectId').value);
+            const reason = document.getElementById('rejectReason').value;
+
+            if (!reason) {
+                App.showToast('请填写驳回原因', 'error');
+                return;
+            }
+
+            const r = MockData.reservations.find(res => res.id === id);
+            if (!r) return;
+
+            // 驳回：标记对应节点为 rejected，整个预约状态变为 rejected
+            if (admin.role === 'supervisor') r.approvals.supervisor = 'rejected';
+            if (admin.role === 'device') r.approvals.device = 'rejected';
+            if (admin.role === 'finance') r.approvals.finance = 'rejected';
+
+            r.status = 'rejected';
+            r.rejectReason = reason;
+
+            App.closeModal('rejectModal');
+            App.showToast('已驳回，流程终止');
+            render();
+        }
+
+        function logout() { DataService.adminLogout(); App.navigate('index.html'); }
     </script>
 </body>
 

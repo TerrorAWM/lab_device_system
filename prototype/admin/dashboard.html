@@ -88,15 +88,41 @@
     <script>
         const admin = App.checkAdminAuth();
         if (admin) {
-            document.getElementById('adminName').textContent = admin.name;
+            const roleInfo = MockData.adminRoles[admin.role] || { name: '管理员', permissions: [] };
+            document.getElementById('adminName').textContent = admin.name + ' (' + roleInfo.name + ')';
+
+            // 动态生成侧边栏
+            renderSidebar(admin.role);
+
             const stats = DataService.getStats();
             document.getElementById('statTotal').textContent = stats.totalDevices;
             document.getElementById('statAvailable').textContent = stats.availableDevices;
             document.getElementById('statBorrowing').textContent = stats.borrowingDevices;
             document.getElementById('statPending').textContent = stats.pendingReservations;
             const borrows = DataService.getAllBorrows().slice(0, 5);
-            document.getElementById('recentBorrows').innerHTML = borrows.map(b => `<tr><td>${b.user?.username || '-'}</td><td>${b.device?.name || '-'}</td><td>${b.borrowDate}</td><td>${App.renderStatusBadge(MockData.borrowStatus[b.status])}</td></tr>`).join('');
+            document.getElementById('recentBorrows').innerHTML = borrows.map(b => `<tr><td>${b.user?.username || '-'}</td><td>${b.device?.name || '-'}</td><td>${b.date || b.borrowDate || '-'}</td><td>${App.renderStatusBadge(MockData.borrowStatus[b.status])}</td></tr>`).join('');
         }
+
+        function renderSidebar(role) {
+            const roleInfo = MockData.adminRoles[role] || { permissions: [] };
+            const permissions = roleInfo.permissions;
+            const menuItems = [
+                { id: 'dashboard', href: 'dashboard.html', icon: 'fa-tachometer-alt', text: '仪表盘', active: true },
+                { id: 'device', href: 'device.html', icon: 'fa-desktop', text: '设备管理' },
+                { id: 'reservation', href: 'reservation.html', icon: 'fa-calendar-check', text: '预约审批' },
+                { id: 'borrow', href: 'borrow.html', icon: 'fa-hand-holding', text: '借用管理' },
+                { id: 'payment', href: 'payment.html', icon: 'fa-credit-card', text: '收费管理' },
+                { id: 'user', href: 'user.html', icon: 'fa-users', text: '用户管理' },
+                { id: 'maintenance', href: 'maintenance.html', icon: 'fa-wrench', text: '设备检修' },
+                { id: 'reports', href: 'reports.html', icon: 'fa-chart-bar', text: '统计报表' }
+            ];
+            const sidebar = document.querySelector('.sidebar');
+            sidebar.innerHTML = menuItems
+                .filter(item => permissions.includes(item.id))
+                .map(item => `<a href="${item.href}" class="nav-item${item.active ? ' active' : ''}"><i class="fas ${item.icon}"></i>${item.text}</a>`)
+                .join('');
+        }
+
         function logout() { DataService.adminLogout(); App.navigate('index.html'); }
     </script>
 </body>
