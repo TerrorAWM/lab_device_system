@@ -108,43 +108,35 @@ lab_device_system/
 
 ---
 
-## 数据库结构
+## 数据库
 
-`sql/init.sql` 包含完整的数据库初始化脚本，数据表设计如下：
+`sql/init.sql` 包含完整的数据库初始化脚本。详细字段说明请参阅 [sql/README.md](sql/README.md)。
 
-### 用户模块
+### 导入方式
 
-| 表名 | 说明 |
-| --- | --- |
-| `t_user` | 用户基表（用户名、密码、角色、类型） |
-| `t_user_teacher` | 教师扩展表（职称、学院、研究方向） |
-| `t_user_student` | 学生扩展表（学号、专业、导师） |
-| `t_user_external` | 校外人员扩展表（单位） |
-| `t_user_token` | 登录会话表 |
+```bash
+mysql -u root -p < sql/init.sql
+```
 
-### 设备模块
+### 主要数据表
 
-| 表名 | 说明 |
-| --- | --- |
-| `t_device` | 设备台账表（名称、型号、价格、状态） |
-| `t_device_maintenance` | 设备检修记录表 |
+| 模块 | 表名 | 说明 |
+| --- | --- | --- |
+| 用户 | `t_user`, `t_user_teacher`, `t_user_student`, `t_user_external` | 用户及扩展信息 |
+| 管理员 | `t_admin`, `t_admin_token` | 管理员账号及登录 |
+| 设备 | `t_device`, `t_device_maintenance` | 设备台账及检修 |
+| 业务 | `t_reservation`, `t_borrow_record`, `t_payment` | 预约、借用、支付 |
 
-### 业务模块
-
-| 表名 | 说明 |
-| --- | --- |
-| `t_reservation` | 预约申请表（审批流程、状态） |
-| `t_borrow_record` | 借用流水表（实际借还记录） |
-| `t_payment` | 支付记录表（校外人员缴费）|
-
-### 测试账户
+### 测试账号
 
 | 类型 | 用户名 | 密码 |
 | --- | --- | --- |
-| 管理员 | `admin` | `123456` |
-| 教师 | `teacher1` | `123456` |
-| 学生 | `student1` | `123456` |
-| 校外人员 | `ext1` | `123456` |
+| 教师 | `张三` | `123456` |
+| 学生 | `李四` | `123456` |
+| 校外 | `刘经理` | `123456` |
+| 实验室负责人 | `supervisor` | `123456` |
+| 设备管理员 | `device` | `123456` |
+| 财务管理员 | `finance` | `123456` |
 
 ---
 
@@ -440,11 +432,13 @@ php -S 0.0.0.0:8080 -t .
 
 ## 贡献指南
 
-1. Fork 本仓库
-2. 创建功能分支：`git checkout -b feature/your-feature`
-3. 提交更改：`git commit -m 'Add some feature'`
-4. 推送分支：`git push origin feature/your-feature`
-5. 提交 Pull Request
+详细的开发规范、分支管理和提交规范请参阅 [CONTRIBUTING.md](CONTRIBUTING.md)。
+
+**快速开始：**
+1. 使用 `dev` 分支进行开发，禁止直接向 `main` 推送
+2. 新功能请创建 `feature/*` 分支
+3. Bug修复请创建 `fix/*` 分支
+4. 禁止使用 `git push -f`
 
 ---
 
