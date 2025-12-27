@@ -51,6 +51,9 @@
                     <li class="nav-item">
                         <a class="nav-link" href="#" data-type="external">校外人员</a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" data-type="device">设备管理员</a>
+                    </li>
                 </ul>
 
                 <div class="card">
@@ -91,6 +94,7 @@
                             <option value="teacher">教师</option>
                             <option value="student">学生</option>
                             <option value="external">校外人员</option>
+                            <option value="device">设备管理员</option>
                         </select>
                     </div>
                     <div class="row">
@@ -152,7 +156,7 @@
                 users = users.filter(u => u.type === currentType);
             }
 
-            const typeLabels = { teacher: '教师', student: '学生', external: '校外人员' };
+            const typeLabels = { teacher: '教师', student: '学生', external: '校外人员', device: '设备管理员'};
             document.getElementById('userList').innerHTML = users.map(u => `
                 <tr>
                     <td>${u.id}</td>

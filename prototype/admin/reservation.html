@@ -191,10 +191,10 @@
             // 如果已经驳回或批准，不能再审批
             if (r.status !== 'pending') return false;
 
-            // supervisor 可以审批 supervisor 节点
+            // supervisor 只能审批校外人员，且必须在设备管理员批准之后
             if (role === 'supervisor' && approvals.supervisor === 'pending') {
-                // 学生需要导师先批
-                if (userType === 'student' && approvals.teacher !== 'approved') return false;
+                if (userType !== 'external') return false;
+                if (approvals.device !== 'approved') return false;
                 return true;
             }
 
@@ -260,9 +260,17 @@
                 }
             }
 
-            // 对于校外人员，waiting 状态在前置审批完成后变为 pending
-            if (userType === 'external' && approvals.finance === 'waiting') {
-                if (approvals.device === 'approved' && approvals.supervisor === 'approved') {
+            // 对于校外人员：按顺序推进 device -> supervisor -> finance
+            if (userType === 'external') {
+
+                // 1) 设备管理员通过后，负责人节点开放
+                if (approvals.supervisor === 'waiting' && approvals.device === 'approved') {
+                    approvals.supervisor = 'pending';
+                    allApproved = false;
+                }
+
+                // 2) 负责人通过后，财务节点开放
+                if (approvals.finance === 'waiting' && approvals.supervisor === 'approved') {
                     approvals.finance = 'pending';
                     allApproved = false;
                 }
