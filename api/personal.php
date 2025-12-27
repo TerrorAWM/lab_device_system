@@ -237,14 +237,15 @@ function changePassword(array $user): void
     $stmt->execute([$user['user_id']]);
     $userData = $stmt->fetch();
 
-    // 开发阶段使用明文比较
-    if ($oldPassword !== $userData['password']) {
+    // 使用 bcrypt 验证旧密码
+    if (!password_verify($oldPassword, $userData['password'])) {
         respError('原密码错误');
     }
 
-    // 更新密码
+    // 更新密码（使用 bcrypt 加密）
+    $hashedNewPassword = password_hash($newPassword, PASSWORD_DEFAULT);
     $stmt = $pdo->prepare('UPDATE t_user SET password = ? WHERE user_id = ?');
-    $stmt->execute([$newPassword, $user['user_id']]);
+    $stmt->execute([$hashedNewPassword, $user['user_id']]);
 
     // 删除所有 token，强制重新登录
     $stmt = $pdo->prepare('DELETE FROM t_user_token WHERE user_id = ?');

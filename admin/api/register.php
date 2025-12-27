@@ -55,7 +55,8 @@ $stmt = $pdo->prepare('
     INSERT INTO t_admin (username, password, real_name, role, phone, status)
     VALUES (?, ?, ?, ?, ?, 1)
 ');
-$stmt->execute([$username, $password, $realName, $role, $phone ?: null]);
+$hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+$stmt->execute([$username, $hashedPassword, $realName, $role, $phone ?: null]);
 $adminId = (int)$pdo->lastInsertId();
 
 respOK([

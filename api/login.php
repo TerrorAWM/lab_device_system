@@ -50,8 +50,8 @@ function handleLogin(): void
         respError('用户名或密码错误');
     }
 
-    // 验证密码（开发阶段使用明文，生产环境应使用 password_verify）
-    if ($password !== $user['password']) {
+    // 验证密码（使用 bcrypt 加密验证）
+    if (!password_verify($password, $user['password'])) {
         respError('用户名或密码错误');
     }
 

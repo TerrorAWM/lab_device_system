@@ -186,48 +186,48 @@ CREATE TABLE IF NOT EXISTS t_payment (
 -- ==========================================
 
 INSERT INTO t_admin (username, password, real_name, role) VALUES 
-('supervisor', '123456', '王主任', 'supervisor'),
-('device', '123456', '赵设备员', 'device'),
-('finance', '123456', '张财务', 'finance');
+('supervisor', '$2y$12$0pbirdTPAJ9bZJ1DllZmTO5ERg4e9zHr.Xj8gC0oCswsx0fCTYzI6', '王主任', 'supervisor'),
+('device', '$2y$12$0pbirdTPAJ9bZJ1DllZmTO5ERg4e9zHr.Xj8gC0oCswsx0fCTYzI6', '赵设备员', 'device'),
+('finance', '$2y$12$0pbirdTPAJ9bZJ1DllZmTO5ERg4e9zHr.Xj8gC0oCswsx0fCTYzI6', '张财务', 'finance');
 
 INSERT INTO t_user (username, password, real_name, role, user_type) VALUES 
-('张三', '123456', '张三', 'user', 'teacher');
+('张三', '$2y$12$0pbirdTPAJ9bZJ1DllZmTO5ERg4e9zHr.Xj8gC0oCswsx0fCTYzI6', '张三', 'user', 'teacher');
 SET @teacher1_id = LAST_INSERT_ID();
 INSERT INTO t_user_teacher (user_id, title, college, research_area) VALUES 
 (@teacher1_id, '教授', '物联网工程学院', '嵌入式系统');
 
 INSERT INTO t_user (username, password, real_name, role, user_type) VALUES 
-('王老师', '123456', '王建国', 'user', 'teacher');
+('王老师', '$2y$12$0pbirdTPAJ9bZJ1DllZmTO5ERg4e9zHr.Xj8gC0oCswsx0fCTYzI6', '王建国', 'user', 'teacher');
 SET @teacher2_id = LAST_INSERT_ID();
 INSERT INTO t_user_teacher (user_id, title, college, research_area) VALUES 
 (@teacher2_id, '副教授', '物联网工程学院', '物联网技术');
 
 INSERT INTO t_user (username, password, real_name, role, user_type) VALUES 
-('李四', '123456', '李四', 'user', 'student');
+('李四', '$2y$12$0pbirdTPAJ9bZJ1DllZmTO5ERg4e9zHr.Xj8gC0oCswsx0fCTYzI6', '李四', 'user', 'student');
 SET @student1_id = LAST_INSERT_ID();
 INSERT INTO t_user_student (user_id, student_no, major, college, advisor_id) VALUES 
 (@student1_id, 'S2024001', '软件工程', '物联网工程学院', @teacher1_id);
 
 INSERT INTO t_user (username, password, real_name, role, user_type) VALUES 
-('赵小明', '123456', '赵小明', 'user', 'student');
+('赵小明', '$2y$12$0pbirdTPAJ9bZJ1DllZmTO5ERg4e9zHr.Xj8gC0oCswsx0fCTYzI6', '赵小明', 'user', 'student');
 SET @student2_id = LAST_INSERT_ID();
 INSERT INTO t_user_student (user_id, student_no, major, college, advisor_id) VALUES 
 (@student2_id, 'S2024002', '计算机科学', '物联网工程学院', @teacher1_id);
 
 INSERT INTO t_user (username, password, real_name, role, user_type) VALUES 
-('刘经理', '123456', '刘伟', 'user', 'external');
+('刘经理', '$2y$12$0pbirdTPAJ9bZJ1DllZmTO5ERg4e9zHr.Xj8gC0oCswsx0fCTYzI6', '刘伟', 'user', 'external');
 SET @ext1_id = LAST_INSERT_ID();
 INSERT INTO t_user_external (user_id, organization) VALUES 
 (@ext1_id, '华为技术有限公司');
 
 INSERT INTO t_user (username, password, real_name, role, user_type) VALUES 
-('陈工程师', '123456', '陈明', 'user', 'external');
+('陈工程师', '$2y$12$0pbirdTPAJ9bZJ1DllZmTO5ERg4e9zHr.Xj8gC0oCswsx0fCTYzI6', '陈明', 'user', 'external');
 SET @ext2_id = LAST_INSERT_ID();
 INSERT INTO t_user_external (user_id, organization) VALUES 
 (@ext2_id, '中兴通讯股份有限公司');
 
 INSERT INTO t_user (username, password, real_name, role, user_type) VALUES 
-('赵设备员', '123456', '赵飞', 'user', 'device');
+('赵设备员', '$2y$12$0pbirdTPAJ9bZJ1DllZmTO5ERg4e9zHr.Xj8gC0oCswsx0fCTYzI6', '赵飞', 'user', 'device');
 
 INSERT INTO t_device (device_name, model, manufacturer, category, price, rent_price, status, location) VALUES 
 ('示波器 A-001', 'TBS1102C', 'Tektronix', '测量仪器', 2500.00, 50.00, 1, '实验室A301'),

@@ -56,7 +56,8 @@ try {
         INSERT INTO t_user (username, password, real_name, role, user_type, phone, status)
         VALUES (?, ?, ?, ?, ?, ?, 1)
     ');
-    $stmt->execute([$username, $password, $realName, 'user', $userType, $phone ?: null]);
+    $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+    $stmt->execute([$username, $hashedPassword, $realName, 'user', $userType, $phone ?: null]);
     $userId = (int)$pdo->lastInsertId();
 
     // 根据用户类型插入扩展表
