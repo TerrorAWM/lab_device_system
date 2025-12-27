@@ -36,9 +36,9 @@ function requireAdminAuth(): array
     
     $pdo = getDB();
     $stmt = $pdo->prepare('
-        SELECT a.* FROM admin_users a
-        JOIN admin_tokens at ON a.id = at.admin_id
-        WHERE at.token = ? AND at.expires_at > NOW()
+        SELECT a.* FROM t_admin a
+        JOIN t_admin_token at ON a.admin_id = at.admin_id
+        WHERE at.token = ? AND at.expire_time > NOW()
     ');
     $stmt->execute([$token]);
     $admin = $stmt->fetch();
