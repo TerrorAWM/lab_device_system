@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 问题讨论
+    url: https://github.com/TerrorAWM/lab_device_system/discussions
+    about: 如有疑问请在讨论区提问，Issue仅用于Bug报告和功能请求

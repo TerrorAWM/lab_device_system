@@ -1,6 +1,6 @@
 # 实验室设备管理系统 - README
 
-> 更新：2025-12-20
+> 更新：2025-12-27
 > 
 > 本项目是基于 PHP + MariaDB 的实验室设备管理系统后端示例，前后端分离，前端页面使用 Bootstrap 5.x 做快速 UI。
 > 数据库名统一使用 `lab_device_system`。
@@ -281,52 +281,40 @@ php -S 0.0.0.0:8080 -t .
 
 ---
 
-## 原型设计参考
+## 原型设计
 
-项目包含完整的 HTML 原型，位于 `prototype/` 目录，使用 Bootstrap 5 + Font Awesome 构建，可直接在浏览器中查看。
+项目包含完整的 HTML 原型，位于 `prototype/` 目录。详细说明请参阅 [prototype.md](prototype.md)。
 
-### 原型入口
+### 快速入口
 
 | 入口 | 路径 |
 | --- | --- |
-| 用户登录页 | `prototype/index.html` |
-| 管理员登录页 | `prototype/admin/index.html` |
+| 用户登录 | `prototype/index.html` |
+| 管理员登录 | `prototype/admin/index.html` |
 
-### 用户侧页面 (`prototype/user/`)
+### 测试账号
 
-| 页面 | 文件 | 说明 |
+**用户账号**
+
+| 类型 | 用户名 | 密码 |
 | --- | --- | --- |
-| 设备列表 | `device_list.html` | 浏览、搜索设备，显示价格 |
-| 设备详情 | `device_detail.html` | 查看设备详情、发起预约 |
-| 我的预约 | `reservation.html` | 查看预约状态 |
-| 借用记录 | `borrow.html` | 查看借用历史 |
-| 缴费中心 | `payment.html` | 查看待缴费用 |
-| 个人中心 | `profile.html` | 个人信息维护 |
-| 指导学生 | `students.html` | 教师管理指导学生列表（支持Excel导入） |
-| 申请审批 | `student_approval.html` | 教师审批学生设备预约申请 |
+| 教师 | `张三` | `123456` |
+| 学生 | `李四` | `123456` |
+| 校外 | `刘经理` | `123456` |
 
-### 管理端页面 (`prototype/admin/`)
+**管理员账号**
 
-| 页面 | 文件 | 说明 |
+| 角色 | 用户名 | 密码 |
 | --- | --- | --- |
-| 仪表盘 | `dashboard.html` | 统计概览 |
-| 设备管理 | `device.html` | 设备台账 CRUD |
-| 预约审批 | `reservation.html` | 审批借用申请 |
-| 借用管理 | `borrow.html` | 借用/归还操作 |
-| 收费管理 | `payment.html` | 费用确认 |
-| 用户管理 | `user.html` | 教师/学生/校外人员管理 |
-| 设备检修 | `maintenance.html` | 检修计划与记录 |
-| 统计报表 | `reports.html` | 周/月/年报表生成与导出 |
+| 实验室负责人 | `supervisor` | `admin123` |
+| 设备管理员 | `device` | `123456` |
+| 财务管理员 | `finance` | `123456` |
 
-### 公共页面
+### 主要功能
 
-| 页面 | 文件 | 说明 |
-| --- | --- | --- |
-| 用户登录 | `prototype/index.html` | 用户登录入口 |
-| 用户注册 | `prototype/register.html` | 支持教师/学生/校外人员注册 |
-| 管理员登录 | `prototype/admin/index.html` | 管理后台入口 |
-
-> 💡 **提示**：原型数据由 `prototype/js/data.js` 提供模拟，无需后端即可预览交互效果。
+- 2小时时段预约制 (08:00-10:00, 10:00-12:00, 14:00-16:00, 16:00-18:00, 19:00-21:00)
+- 多级审批流程 (学生需导师审批、校外需财务审批)
+- 角色权限控制 (管理员侧边栏根据角色动态显示)
 
 ---
 
