@@ -82,12 +82,25 @@
             </div>
             <div class="modal-body">
                 <form id="reserveForm">
-                    <div class="form-group"><label class="form-label">开始日期</label><input type="date"
-                            class="form-control" id="startDate" required></div>
-                    <div class="form-group"><label class="form-label">结束日期</label><input type="date"
-                            class="form-control" id="endDate" required></div>
-                    <div class="form-group"><label class="form-label">借用原因</label><textarea class="form-control"
-                            id="reason" rows="3" required></textarea></div>
+                    <div class="form-group">
+                        <label class="form-label">借用日期</label>
+                        <input type="date" class="form-control" id="reserveDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">时段（2小时）</label>
+                        <select class="form-control" id="timeSlot" required>
+                            <option value="">请选择时段</option>
+                            <option value="08:00-10:00">08:00 - 10:00</option>
+                            <option value="10:00-12:00">10:00 - 12:00</option>
+                            <option value="14:00-16:00">14:00 - 16:00</option>
+                            <option value="16:00-18:00">16:00 - 18:00</option>
+                            <option value="19:00-21:00">19:00 - 21:00</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">借用原因</label>
+                        <textarea class="form-control" id="reason" rows="3" required></textarea>
+                    </div>
                 </form>
             </div>
             <div class="modal-footer">
@@ -137,9 +150,12 @@
             }
         }
         function submitReserve() {
-            const data = { deviceId: parseInt(deviceId), startDate: document.getElementById('startDate').value, endDate: document.getElementById('endDate').value, reason: document.getElementById('reason').value };
-            if (!data.startDate || !data.endDate || !data.reason) { App.showToast('请填写完整信息', 'error'); return; }
-            DataService.createReservation(data);
+            const date = document.getElementById('reserveDate').value;
+            const timeSlot = document.getElementById('timeSlot').value;
+            const reason = document.getElementById('reason').value;
+            if (!date || !timeSlot || !reason) { App.showToast('请填写完整信息', 'error'); return; }
+            const id = MockData.reservations.length + 1;
+            MockData.reservations.push({ id, userId: user.id, deviceId: parseInt(deviceId), date, timeSlot, status: 'pending', reason });
             App.showToast('预约申请已提交！');
             App.closeModal('reserveModal');
             setTimeout(() => App.navigate('reservation.html'), 1000);

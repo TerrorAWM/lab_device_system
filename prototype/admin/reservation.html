@@ -39,9 +39,10 @@
                             <thead>
                                 <tr>
                                     <th>用户</th>
+                                    <th>身份</th>
                                     <th>设备</th>
-                                    <th>开始日期</th>
-                                    <th>结束日期</th>
+                                    <th>借用日期</th>
+                                    <th>时段</th>
                                     <th>原因</th>
                                     <th>状态</th>
                                     <th>操作</th>
@@ -58,23 +59,28 @@
     <script src="../js/app.js"></script>
     <script>
         const admin = App.checkAdminAuth();
+        const typeMap = { teacher: { text: '教师', class: 'approved' }, student: { text: '学生', class: 'pending' }, external: { text: '校外人员', class: 'borrowed' } };
         if (admin) { document.getElementById('adminName').textContent = admin.name; render(); }
         function render() {
             const list = DataService.getAllReservations();
-            document.getElementById('reservationList').innerHTML = list.map(r => `
+            document.getElementById('reservationList').innerHTML = list.map(r => {
+                const userType = r.user?.type || 'student';
+                const typeInfo = typeMap[userType] || { text: '未知', class: '' };
+                return `
                 <tr>
                     <td>${r.user?.username || '-'}</td>
+                    <td><span class="status-badge ${typeInfo.class}">${typeInfo.text}</span></td>
                     <td>${r.device?.name || '-'}</td>
-                    <td>${r.startDate}</td>
-                    <td>${r.endDate}</td>
-                    <td>${r.reason}</td>
+                    <td>${r.date || r.startDate || '-'}</td>
+                    <td>${r.timeSlot || '-'}</td>
+                    <td>${r.reason || '-'}</td>
                     <td>${App.renderStatusBadge(MockData.reservationStatus[r.status])}</td>
                     <td>${r.status === 'pending' ? `
                         <button class="btn btn-sm btn-success" onclick="approve(${r.id}, true)"><i class="fas fa-check"></i></button>
                         <button class="btn btn-sm btn-danger" onclick="approve(${r.id}, false)"><i class="fas fa-times"></i></button>
                     ` : '-'}</td>
                 </tr>
-            `).join('');
+            `}).join('');
         }
         function approve(id, approved) {
             DataService.approveReservation(id, approved);

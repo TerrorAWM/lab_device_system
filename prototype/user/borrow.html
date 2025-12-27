@@ -37,7 +37,7 @@
                                 <tr>
                                     <th>设备名称</th>
                                     <th>借用日期</th>
-                                    <th>预计归还</th>
+                                    <th>时段</th>
                                     <th>实际归还</th>
                                     <th>状态</th>
                                     <th>操作</th>
@@ -74,8 +74,8 @@
             document.getElementById('borrowList').innerHTML = borrows.length ? borrows.map(b => `
                 <tr>
                     <td>${b.device ? b.device.name : '未知'}</td>
-                    <td>${b.borrowDate}</td>
-                    <td>${b.expectedReturn}</td>
+                    <td>${b.date || b.borrowDate || '-'}</td>
+                    <td>${b.timeSlot || '-'}</td>
                     <td>${b.actualReturn || '-'}</td>
                     <td>${App.renderStatusBadge(MockData.borrowStatus[b.status])}</td>
                     <td>${b.status === 'borrowing' ? `<button class="btn btn-success btn-sm" onclick="returnDevice(${b.id})">归还</button>` : '-'}</td>

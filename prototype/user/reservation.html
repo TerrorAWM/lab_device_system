@@ -37,8 +37,9 @@
                                 <thead>
                                     <tr>
                                         <th>设备名称</th>
-                                        <th>开始日期</th>
-                                        <th>结束日期</th>
+                                        <th>借用日期</th>
+                                        <th>时段</th>
+                                        <th>借用原因</th>
                                         <th>状态</th>
                                         <th>操作</th>
                                     </tr>
@@ -51,6 +52,46 @@
             </main>
         </div>
     </div>
+
+    <!-- Modify Reservation Modal -->
+    <div class="modal-overlay" id="modifyModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>修改预约</h3>
+                <button class="modal-close" onclick="App.closeModal('modifyModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="modifyId">
+                <div class="form-group">
+                    <label class="form-label">设备</label>
+                    <input type="text" class="form-control" id="modifyDevice" readonly>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">借用日期</label>
+                    <input type="date" class="form-control" id="modifyDate" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">时段（2小时）</label>
+                    <select class="form-control" id="modifyTimeSlot" required>
+                        <option value="08:00-10:00">08:00 - 10:00</option>
+                        <option value="10:00-12:00">10:00 - 12:00</option>
+                        <option value="14:00-16:00">14:00 - 16:00</option>
+                        <option value="16:00-18:00">16:00 - 18:00</option>
+                        <option value="19:00-21:00">19:00 - 21:00</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">借用原因</label>
+                    <textarea class="form-control" id="modifyReason" rows="3" required></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="App.closeModal('modifyModal')">取消</button>
+                <button class="btn btn-primary" onclick="saveModify()">保存修改</button>
+            </div>
+        </div>
+    </div>
+
     <script src="../js/data.js"></script>
     <script src="../js/app.js"></script>
     <script>
@@ -70,21 +111,76 @@
             }
             renderReservations();
         }
+
         function renderReservations() {
             const reservations = DataService.getUserReservations(user.id);
-            document.getElementById('reservationList').innerHTML = reservations.length ? reservations.map(r => `
+            document.getElementById('reservationList').innerHTML = reservations.length ? reservations.map(r => {
+                const isPending = r.status === 'pending';
+                const isApproved = r.status === 'approved';
+                const canCancel = isPending || isApproved;
+                let actions = '-';
+                if (canCancel) {
+                    actions = isPending ? `
+                        <button class="btn btn-outline btn-sm me-1" onclick="openModifyModal(${r.id})"><i class="fas fa-edit"></i> 修改</button>
+                        <button class="btn btn-danger btn-sm" onclick="cancelReserve(${r.id})"><i class="fas fa-times"></i> 撤销</button>
+                    ` : `
+                        <button class="btn btn-danger btn-sm" onclick="cancelReserve(${r.id})"><i class="fas fa-times"></i> 撤销</button>
+                    `;
+                }
+                return `
                 <tr>
                     <td>${r.device ? r.device.name : '未知设备'}</td>
-                    <td>${r.startDate}</td>
-                    <td>${r.endDate}</td>
+                    <td>${r.date || r.startDate || '-'}</td>
+                    <td>${r.timeSlot || '-'}</td>
+                    <td>${r.reason || '-'}</td>
                     <td>${App.renderStatusBadge(MockData.reservationStatus[r.status])}</td>
-                    <td>${r.status === 'pending' ? `<button class="btn btn-danger btn-sm" onclick="cancelReserve(${r.id})">取消</button>` : '-'}</td>
+                    <td>${actions}</td>
                 </tr>
-            `).join('') : '<tr><td colspan="5" class="text-center text-muted py-5">暂无预约记录</td></tr>';
+            `}).join('') : '<tr><td colspan="6" class="text-center text-muted py-5">暂无预约记录</td></tr>';
         }
+
+        function openModifyModal(id) {
+            const reservation = MockData.reservations.find(r => r.id === id);
+            if (reservation) {
+                document.getElementById('modifyId').value = id;
+                document.getElementById('modifyDevice').value = reservation.device ? reservation.device.name : DataService.getDevice(reservation.deviceId)?.name || '未知设备';
+                document.getElementById('modifyDate').value = reservation.date || reservation.startDate;
+                document.getElementById('modifyTimeSlot').value = reservation.timeSlot || '08:00-10:00';
+                document.getElementById('modifyReason').value = reservation.reason || '';
+                App.openModal('modifyModal');
+            }
+        }
+
+        function saveModify() {
+            const id = parseInt(document.getElementById('modifyId').value);
+            const date = document.getElementById('modifyDate').value;
+            const timeSlot = document.getElementById('modifyTimeSlot').value;
+            const reason = document.getElementById('modifyReason').value;
+
+            if (!date || !timeSlot || !reason) {
+                App.showToast('请填写完整信息', 'error');
+                return;
+            }
+
+            const reservation = MockData.reservations.find(r => r.id === id);
+            if (reservation) {
+                reservation.date = date;
+                reservation.timeSlot = timeSlot;
+                reservation.reason = reason;
+                App.closeModal('modifyModal');
+                App.showToast('预约修改成功！');
+                renderReservations();
+            }
+        }
+
         function cancelReserve(id) {
-            if (confirm('确定取消该预约？')) { DataService.cancelReservation(id); App.showToast('预约已取消'); renderReservations(); }
+            if (confirm('确定撤销该预约？此操作不可恢复。')) {
+                DataService.cancelReservation(id);
+                App.showToast('预约已撤销');
+                renderReservations();
+            }
         }
+
         function toggleSubmenu(e) {
             e.preventDefault();
             const submenu = e.currentTarget.nextElementSibling;

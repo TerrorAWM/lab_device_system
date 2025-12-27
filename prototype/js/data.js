@@ -30,16 +30,24 @@ const MockData = {
         { id: 5, name: '逻辑分析仪 E-005', category: '分析仪器', model: 'Saleae Logic Pro 16', status: 2, location: '实验室A303', price: 80 }
     ],
     reservations: [
-        { id: 1, userId: 1, deviceId: 4, startDate: '2024-12-25', endDate: '2024-12-27', status: 'approved', reason: '课程实验使用' },
-        { id: 2, userId: 2, deviceId: 1, startDate: '2024-12-28', endDate: '2024-12-30', status: 'pending', reason: '毕业设计测试' }
+        { id: 1, userId: 1, deviceId: 4, date: '2024-12-25', timeSlot: '08:00-10:00', status: 'approved', reason: '课程实验使用' },
+        { id: 2, userId: 3, deviceId: 1, date: '2024-12-28', timeSlot: '10:00-12:00', status: 'pending', reason: '毕业设计测试' },
+        { id: 3, userId: 4, deviceId: 2, date: '2024-12-29', timeSlot: '14:00-16:00', status: 'pending', reason: '课程实验' },
+        { id: 4, userId: 8, deviceId: 3, date: '2024-12-30', timeSlot: '08:00-10:00', status: 'pending', reason: '企业项目测试' },
+        { id: 5, userId: 9, deviceId: 1, date: '2024-12-31', timeSlot: '14:00-16:00', status: 'pending', reason: '科研合作项目' },
+        { id: 6, userId: 1, deviceId: 2, date: '2024-12-20', timeSlot: '10:00-12:00', status: 'rejected', reason: '时间冲突' },
+        { id: 7, userId: 7, deviceId: 5, date: '2025-01-02', timeSlot: '16:00-18:00', status: 'pending', reason: '研究院合作' }
     ],
     borrowRecords: [
-        { id: 1, userId: 1, deviceId: 4, borrowDate: '2024-12-25', expectedReturn: '2024-12-27', actualReturn: null, status: 'borrowing' },
-        { id: 2, userId: 2, deviceId: 1, borrowDate: '2024-12-10', expectedReturn: '2024-12-15', actualReturn: '2024-12-15', status: 'returned' }
+        { id: 1, userId: 1, deviceId: 4, date: '2024-12-25', timeSlot: '08:00-10:00', actualReturn: null, status: 'borrowing' },
+        { id: 2, userId: 3, deviceId: 1, date: '2024-12-10', timeSlot: '10:00-12:00', actualReturn: '2024-12-10 12:00', status: 'returned' },
+        { id: 3, userId: 8, deviceId: 3, date: '2024-12-15', timeSlot: '14:00-16:00', actualReturn: '2024-12-15 16:00', status: 'returned' }
     ],
     payments: [
-        { id: 1, userId: 1, borrowId: 1, amount: 60, status: 'unpaid', description: '电源供应器借用3天' },
-        { id: 2, userId: 2, borrowId: 2, amount: 250, status: 'paid', description: '示波器借用5天' }
+        { id: 1, userId: 1, borrowId: 1, amount: 0, status: 'paid', description: '电源供应器使用2小时（校内免费）' },
+        { id: 2, userId: 3, borrowId: 2, amount: 0, status: 'paid', description: '示波器使用2小时（校内免费）' },
+        { id: 3, userId: 8, borrowId: 3, amount: 60, status: 'paid', description: '信号发生器使用2小时' },
+        { id: 4, userId: 9, borrowId: 4, amount: 100, status: 'unpaid', description: '示波器使用2小时（待支付）' }
     ],
     categories: ['全部', '测量仪器', '信号源', '电源设备', '分析仪器'],
     deviceStatus: { 0: { text: '可用', class: 'available' }, 1: { text: '借出', class: 'borrowed' }, 2: { text: '维护中', class: 'maintenance' } },
