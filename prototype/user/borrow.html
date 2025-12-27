@@ -19,7 +19,7 @@
             </div>
         </nav>
         <div class="d-flex">
-            <aside class="sidebar">
+            <aside class="sidebar" id="userSidebar">
                 <a href="device_list.html" class="nav-item"><i class="fas fa-desktop"></i>设备列表</a>
                 <a href="reservation.html" class="nav-item"><i class="fas fa-calendar-check"></i>我的预约</a>
                 <a href="borrow.html" class="nav-item active"><i class="fas fa-hand-holding"></i>借用记录</a>
@@ -54,7 +54,21 @@
     <script src="../js/app.js"></script>
     <script>
         const user = App.checkAuth();
-        if (user) { document.getElementById('userName').textContent = user.username; renderBorrows(); }
+        if (user) {
+            document.getElementById('userName').textContent = user.username;
+            if (user.type === 'teacher') {
+                document.getElementById('userSidebar').insertAdjacentHTML('beforeend', `
+                    <div class="nav-group">
+                        <a href="#" class="nav-item nav-toggle" onclick="toggleSubmenu(event)"><i class="fas fa-user-graduate"></i>学生 <i class="fas fa-chevron-down ms-auto toggle-icon"></i></a>
+                        <div class="nav-submenu">
+                            <a href="students.html" class="nav-item sub-item"><i class="fas fa-list"></i>学生列表</a>
+                            <a href="student_approval.html" class="nav-item sub-item"><i class="fas fa-clipboard-check"></i>申请审批</a>
+                        </div>
+                    </div>
+                `);
+            }
+            renderBorrows();
+        }
         function renderBorrows() {
             const borrows = DataService.getUserBorrows(user.id);
             document.getElementById('borrowList').innerHTML = borrows.length ? borrows.map(b => `
@@ -69,6 +83,14 @@
             `).join('') : '<tr><td colspan="6" class="text-center text-muted py-5">暂无借用记录</td></tr>';
         }
         function returnDevice(id) { if (confirm('确认归还该设备？')) { DataService.returnDevice(id); App.showToast('归还成功！'); renderBorrows(); } }
+        function toggleSubmenu(e) {
+            e.preventDefault();
+            const submenu = e.currentTarget.nextElementSibling;
+            const icon = e.currentTarget.querySelector('.toggle-icon');
+            submenu.classList.toggle('show');
+            icon.classList.toggle('fa-chevron-down');
+            icon.classList.toggle('fa-chevron-up');
+        }
     </script>
 </body>
 

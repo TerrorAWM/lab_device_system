@@ -21,7 +21,7 @@
             </div>
         </nav>
         <div class="d-flex">
-            <aside class="sidebar">
+            <aside class="sidebar" id="userSidebar">
                 <a href="device_list.html" class="nav-item active"><i class="fas fa-desktop"></i>设备列表</a>
                 <a href="reservation.html" class="nav-item"><i class="fas fa-calendar-check"></i>我的预约</a>
                 <a href="borrow.html" class="nav-item"><i class="fas fa-hand-holding"></i>借用记录</a>
@@ -49,6 +49,20 @@
         const user = App.checkAuth();
         if (user) {
             document.getElementById('userName').textContent = user.username;
+
+            // 教师显示"学生"折叠菜单
+            if (user.type === 'teacher') {
+                document.getElementById('userSidebar').insertAdjacentHTML('beforeend', `
+                    <div class="nav-group">
+                        <a href="#" class="nav-item nav-toggle" onclick="toggleSubmenu(event)"><i class="fas fa-user-graduate"></i>学生 <i class="fas fa-chevron-down ms-auto toggle-icon"></i></a>
+                        <div class="nav-submenu">
+                            <a href="students.html" class="nav-item sub-item"><i class="fas fa-list"></i>学生列表</a>
+                            <a href="student_approval.html" class="nav-item sub-item"><i class="fas fa-clipboard-check"></i>申请审批</a>
+                        </div>
+                    </div>
+                `);
+            }
+
             renderDevices();
             renderCategories();
             document.getElementById('searchInput').addEventListener('input', renderDevices);
@@ -62,19 +76,34 @@
             const keyword = document.getElementById('searchInput').value;
             const category = document.getElementById('categoryFilter').value;
             const devices = DataService.getDevices({ keyword, category });
+            const isFree = user.type === 'teacher' || user.type === 'student';
             document.getElementById('deviceGrid').innerHTML = devices.map(d => {
                 const status = MockData.deviceStatus[d.status];
+                const priceHtml = isFree
+                    ? `<span style="text-decoration: line-through; color: #999; font-size: 0.85rem;">¥${d.price}</span> <span class="text-success">免费</span>`
+                    : `<span class="text-secondary">¥${d.price}/天</span>`;
                 return `<div class="col-md-4 col-lg-3 mb-4">
                     <div class="card device-card" onclick="App.navigate('device_detail.html?id=${d.id}')">
                         <div class="device-image"><i class="fas fa-microchip"></i></div>
                         <div class="device-info">
                             <div class="device-name">${d.name}</div>
                             <div class="text-muted small mb-2">${d.model}</div>
-                            <div class="device-status">${App.renderStatusBadge(status)}</div>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div class="device-status">${App.renderStatusBadge(status)}</div>
+                                <div>${priceHtml}</div>
+                            </div>
                         </div>
                     </div>
                 </div>`;
             }).join('');
+        }
+        function toggleSubmenu(e) {
+            e.preventDefault();
+            const submenu = e.currentTarget.nextElementSibling;
+            const icon = e.currentTarget.querySelector('.toggle-icon');
+            submenu.classList.toggle('show');
+            icon.classList.toggle('fa-chevron-down');
+            icon.classList.toggle('fa-chevron-up');
         }
         function logout() { DataService.logout(); App.navigate('../index.html'); }
     </script>

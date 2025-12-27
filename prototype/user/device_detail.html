@@ -20,7 +20,7 @@
             </div>
         </nav>
         <div class="d-flex">
-            <aside class="sidebar">
+            <aside class="sidebar" id="userSidebar">
                 <a href="device_list.html" class="nav-item active"><i class="fas fa-desktop"></i>设备列表</a>
                 <a href="reservation.html" class="nav-item"><i class="fas fa-calendar-check"></i>我的预约</a>
                 <a href="borrow.html" class="nav-item"><i class="fas fa-hand-holding"></i>借用记录</a>
@@ -104,13 +104,34 @@
         const deviceId = params.get('id');
         if (user && deviceId) {
             document.getElementById('userName').textContent = user.username;
+
+            // 教师显示"学生"菜单
+            if (user.type === 'teacher') {
+                document.getElementById('userSidebar').insertAdjacentHTML('beforeend', `
+                    <div class="nav-group">
+                        <a href="#" class="nav-item nav-toggle" onclick="toggleSubmenu(event)"><i class="fas fa-user-graduate"></i>学生 <i class="fas fa-chevron-down ms-auto toggle-icon"></i></a>
+                        <div class="nav-submenu">
+                            <a href="students.html" class="nav-item sub-item"><i class="fas fa-list"></i>学生列表</a>
+                            <a href="student_approval.html" class="nav-item sub-item"><i class="fas fa-clipboard-check"></i>申请审批</a>
+                        </div>
+                    </div>
+                `);
+            }
+
             const device = DataService.getDevice(deviceId);
             if (device) {
                 document.getElementById('deviceName').textContent = device.name;
                 document.getElementById('deviceModel').textContent = device.model;
                 document.getElementById('deviceCategory').textContent = device.category;
                 document.getElementById('deviceLocation').textContent = device.location;
-                document.getElementById('devicePrice').textContent = `¥${device.price}/天`;
+
+                // 校内师生免费，校外人员付费
+                if (user.type === 'teacher' || user.type === 'student') {
+                    document.getElementById('devicePrice').innerHTML = `<span style="text-decoration: line-through; color: #999;">¥${device.price}/天</span> <span class="text-success fw-bold"> ¥0</span>`;
+                } else {
+                    document.getElementById('devicePrice').innerHTML = `<span class="fw-bold">¥${device.price}/天</span>`;
+                }
+
                 document.getElementById('deviceStatus').innerHTML = App.renderStatusBadge(MockData.deviceStatus[device.status]);
                 if (device.status !== 0) { document.getElementById('reserveBtn').disabled = true; document.getElementById('reserveBtn').textContent = '暂不可预约'; }
             }
@@ -122,6 +143,14 @@
             App.showToast('预约申请已提交！');
             App.closeModal('reserveModal');
             setTimeout(() => App.navigate('reservation.html'), 1000);
+        }
+        function toggleSubmenu(e) {
+            e.preventDefault();
+            const submenu = e.currentTarget.nextElementSibling;
+            const icon = e.currentTarget.querySelector('.toggle-icon');
+            submenu.classList.toggle('show');
+            icon.classList.toggle('fa-chevron-down');
+            icon.classList.toggle('fa-chevron-up');
         }
     </script>
 </body>

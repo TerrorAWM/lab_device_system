@@ -5,9 +5,19 @@ const MockData = {
     currentUser: null,
     currentAdmin: null,
     users: [
-        { id: 1, username: '张三', password: '123456', phone: '13800000001', type: 'teacher' },
-        { id: 2, username: '李四', password: '123456', phone: '13800000002', type: 'student' },
-        { id: 3, username: '王五', password: '123456', phone: '13800000003', type: 'external' }
+        // 教师账户
+        { id: 1, username: '张三', password: '123456', phone: '13800000001', type: 'teacher', realName: '张三', title: '教授', college: '计算机学院' },
+        { id: 2, username: '王教授', password: '123456', phone: '13800000010', type: 'teacher', realName: '王建国', title: '副教授', college: '物联网学院' },
+        // 学生账户
+        { id: 3, username: '李四', password: '123456', phone: '13800000002', type: 'student', realName: '李四', studentNo: 'S2024001', major: '软件工程', college: '计算机学院', advisorId: 1 },
+        { id: 4, username: '赵小明', password: '123456', phone: '13800000011', type: 'student', realName: '赵小明', studentNo: 'S2024002', major: '计算机科学', college: '计算机学院', advisorId: 1 },
+        { id: 5, username: '孙丽丽', password: '123456', phone: '13800000012', type: 'student', realName: '孙丽丽', studentNo: 'S2024003', major: '物联网工程', college: '物联网学院', advisorId: 2 },
+        { id: 6, username: '周杰', password: '123456', phone: '13800000013', type: 'student', realName: '周杰', studentNo: 'S2023015', major: '电子信息', college: '物联网学院', advisorId: 2 },
+        // 校外人员账户
+        { id: 7, username: '王五', password: '123456', phone: '13800000003', type: 'external', realName: '王五', organization: 'XX科技公司' },
+        { id: 8, username: '刘经理', password: '123456', phone: '13900000001', type: 'external', realName: '刘伟', organization: '华为技术有限公司' },
+        { id: 9, username: '陈工程师', password: '123456', phone: '13900000002', type: 'external', realName: '陈明', organization: '中兴通讯股份有限公司' },
+        { id: 10, username: '李研究员', password: '123456', phone: '13900000003', type: 'external', realName: '李芳', organization: '中国科学院' }
     ],
     admins: [
         { id: 1, username: 'admin', password: 'admin123', role: 'supervisor', name: '系统管理员' }

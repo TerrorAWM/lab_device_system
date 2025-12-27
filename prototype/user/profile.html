@@ -20,7 +20,7 @@
             </div>
         </nav>
         <div class="d-flex">
-            <aside class="sidebar">
+            <aside class="sidebar" id="userSidebar">
                 <a href="device_list.html" class="nav-item"><i class="fas fa-desktop"></i>设备列表</a>
                 <a href="reservation.html" class="nav-item"><i class="fas fa-calendar-check"></i>我的预约</a>
                 <a href="borrow.html" class="nav-item"><i class="fas fa-hand-holding"></i>借用记录</a>
@@ -70,6 +70,20 @@
         const typeMap = { teacher: '教师', student: '学生', external: '校外人员' };
         if (user) {
             document.getElementById('userName').textContent = user.username;
+
+            // 教师显示"学生"菜单
+            if (user.type === 'teacher') {
+                document.getElementById('userSidebar').insertAdjacentHTML('beforeend', `
+                    <div class="nav-group">
+                        <a href="#" class="nav-item nav-toggle" onclick="toggleSubmenu(event)"><i class="fas fa-user-graduate"></i>学生 <i class="fas fa-chevron-down ms-auto toggle-icon"></i></a>
+                        <div class="nav-submenu">
+                            <a href="students.html" class="nav-item sub-item"><i class="fas fa-list"></i>学生列表</a>
+                            <a href="student_approval.html" class="nav-item sub-item"><i class="fas fa-clipboard-check"></i>申请审批</a>
+                        </div>
+                    </div>
+                `);
+            }
+
             document.getElementById('profileName').textContent = user.username;
             document.getElementById('profileType').textContent = typeMap[user.type] || user.type;
             document.getElementById('inputName').value = user.username;
@@ -77,6 +91,14 @@
             document.getElementById('inputType').value = typeMap[user.type] || user.type;
         }
         document.getElementById('profileForm').addEventListener('submit', e => { e.preventDefault(); App.showToast('信息已保存！'); });
+        function toggleSubmenu(e) {
+            e.preventDefault();
+            const submenu = e.currentTarget.nextElementSibling;
+            const icon = e.currentTarget.querySelector('.toggle-icon');
+            submenu.classList.toggle('show');
+            icon.classList.toggle('fa-chevron-down');
+            icon.classList.toggle('fa-chevron-up');
+        }
         function logout() { DataService.logout(); App.navigate('../index.html'); }
     </script>
 </body>

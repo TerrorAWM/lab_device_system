@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>用户管理 - 管理后台</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="../css/style.css" rel="stylesheet">
+</head>
+
+<body>
+    <div class="main-container">
+        <nav class="top-navbar">
+            <div class="brand"><i class="fas fa-cogs me-2"></i>管理后台</div>
+            <div class="user-info"><span id="adminName">管理员</span>
+                <div class="avatar"><i class="fas fa-user-shield"></i></div><button class="btn btn-outline btn-sm"
+                    onclick="logout()">退出</button>
+            </div>
+        </nav>
+        <div class="d-flex">
+            <aside class="sidebar">
+                <a href="dashboard.html" class="nav-item"><i class="fas fa-tachometer-alt"></i>仪表盘</a>
+                <a href="device.html" class="nav-item"><i class="fas fa-desktop"></i>设备管理</a>
+                <a href="reservation.html" class="nav-item"><i class="fas fa-calendar-check"></i>预约审批</a>
+                <a href="borrow.html" class="nav-item"><i class="fas fa-hand-holding"></i>借用管理</a>
+                <a href="payment.html" class="nav-item"><i class="fas fa-credit-card"></i>收费管理</a>
+                <a href="user.html" class="nav-item active"><i class="fas fa-users"></i>用户管理</a>
+                <a href="maintenance.html" class="nav-item"><i class="fas fa-wrench"></i>设备检修</a>
+                <a href="reports.html" class="nav-item"><i class="fas fa-chart-bar"></i>统计报表</a>
+            </aside>
+            <main class="content-area">
+                <div class="page-header d-flex justify-content-between align-items-center">
+                    <h1>用户管理</h1>
+                    <button class="btn btn-primary" onclick="openAddModal()"><i
+                            class="fas fa-plus me-2"></i>添加用户</button>
+                </div>
+
+                <!-- Tab Navigation -->
+                <ul class="nav nav-tabs mb-4" id="userTabs">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#" data-type="all">全部用户</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" data-type="teacher">教师</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" data-type="student">学生</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" data-type="external">校外人员</a>
+                    </li>
+                </ul>
+
+                <div class="card">
+                    <div class="card-body">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>用户名</th>
+                                    <th>真实姓名</th>
+                                    <th>类型</th>
+                                    <th>联系电话</th>
+                                    <th>状态</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="userList"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Add/Edit User Modal -->
+    <div class="modal-overlay" id="userModal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3 id="modalTitle">添加用户</h3>
+                <button class="modal-close" onclick="App.closeModal('userModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="userForm">
+                    <input type="hidden" id="userId">
+                    <div class="form-group">
+                        <label class="form-label">用户类型</label>
+                        <select class="form-control" id="formUserType" required>
+                            <option value="teacher">教师</option>
+                            <option value="student">学生</option>
+                            <option value="external">校外人员</option>
+                        </select>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 form-group">
+                            <label class="form-label">用户名</label>
+                            <input type="text" class="form-control" id="formUsername" required>
+                        </div>
+                        <div class="col-md-6 form-group">
+                            <label class="form-label">真实姓名</label>
+                            <input type="text" class="form-control" id="formRealName" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">联系电话</label>
+                        <input type="tel" class="form-control" id="formPhone">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">状态</label>
+                        <select class="form-control" id="formStatus">
+                            <option value="1">正常</option>
+                            <option value="0">禁用</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="App.closeModal('userModal')">取消</button>
+                <button class="btn btn-primary" onclick="saveUser()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/data.js"></script>
+    <script src="../js/app.js"></script>
+    <script>
+        const admin = App.checkAdminAuth();
+        let currentType = 'all';
+
+        if (admin) {
+            document.getElementById('adminName').textContent = admin.name;
+            render();
+
+            // Tab click handlers
+            document.querySelectorAll('#userTabs .nav-link').forEach(tab => {
+                tab.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    document.querySelectorAll('#userTabs .nav-link').forEach(t => t.classList.remove('active'));
+                    this.classList.add('active');
+                    currentType = this.dataset.type;
+                    render();
+                });
+            });
+        }
+
+        function render() {
+            let users = MockData.users.filter(u => u.role !== 'admin');
+            if (currentType !== 'all') {
+                users = users.filter(u => u.type === currentType);
+            }
+
+            const typeLabels = { teacher: '教师', student: '学生', external: '校外人员' };
+            document.getElementById('userList').innerHTML = users.map(u => `
+                <tr>
+                    <td>${u.id}</td>
+                    <td>${u.username}</td>
+                    <td>${u.realName || u.username}</td>
+                    <td><span class="status-badge ${u.type === 'teacher' ? 'approved' : u.type === 'student' ? 'available' : 'pending'}">${typeLabels[u.type] || u.type}</span></td>
+                    <td>${u.phone || '-'}</td>
+                    <td>${u.status !== 0 ? '<span class="status-badge available">正常</span>' : '<span class="status-badge maintenance">禁用</span>'}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline" onclick="editUser(${u.id})"><i class="fas fa-edit"></i></button>
+                        <button class="btn btn-sm btn-danger" onclick="toggleStatus(${u.id})"><i class="fas fa-ban"></i></button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function openAddModal() {
+            document.getElementById('modalTitle').textContent = '添加用户';
+            document.getElementById('userForm').reset();
+            document.getElementById('userId').value = '';
+            App.openModal('userModal');
+        }
+
+        function editUser(id) {
+            const user = MockData.users.find(u => u.id === id);
+            if (!user) return;
+            document.getElementById('modalTitle').textContent = '编辑用户';
+            document.getElementById('userId').value = user.id;
+            document.getElementById('formUserType').value = user.type;
+            document.getElementById('formUsername').value = user.username;
+            document.getElementById('formRealName').value = user.realName || user.username;
+            document.getElementById('formPhone').value = user.phone || '';
+            document.getElementById('formStatus').value = user.status !== 0 ? '1' : '0';
+            App.openModal('userModal');
+        }
+
+        function saveUser() {
+            App.closeModal('userModal');
+            App.showToast('保存成功！');
+            render();
+        }
+
+        function toggleStatus(id) {
+            if (confirm('确定要切换该用户的状态？')) {
+                App.showToast('状态已更新');
+                render();
+            }
+        }
+
+        function logout() { DataService.adminLogout(); App.navigate('index.html'); }
+    </script>
+</body>
+
+</html>

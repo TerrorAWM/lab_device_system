@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>申请审批 - 实验室设备管理系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="../css/style.css" rel="stylesheet">
+</head>
+
+<body>
+    <div class="main-container">
+        <nav class="top-navbar">
+            <div class="brand"><i class="fas fa-flask me-2"></i>实验室设备管理系统</div>
+            <div class="user-info"><span id="userName">用户</span>
+                <div class="avatar"><i class="fas fa-user"></i></div><button class="btn btn-outline btn-sm"
+                    onclick="logout()">退出</button>
+            </div>
+        </nav>
+        <div class="d-flex">
+            <aside class="sidebar" id="userSidebar">
+                <a href="device_list.html" class="nav-item"><i class="fas fa-desktop"></i>设备列表</a>
+                <a href="reservation.html" class="nav-item"><i class="fas fa-calendar-check"></i>我的预约</a>
+                <a href="borrow.html" class="nav-item"><i class="fas fa-hand-holding"></i>借用记录</a>
+                <a href="payment.html" class="nav-item"><i class="fas fa-credit-card"></i>缴费中心</a>
+                <a href="profile.html" class="nav-item"><i class="fas fa-user-circle"></i>个人中心</a>
+            </aside>
+            <main class="content-area">
+                <div class="page-header">
+                    <h1>学生预约申请审批</h1>
+                    <p class="text-muted">审批您指导学生的设备预约申请</p>
+                </div>
+
+                <div class="row mb-4">
+                    <div class="col-md-4">
+                        <div class="stat-card warning">
+                            <div class="stat-value" id="statPending">0</div>
+                            <div class="stat-label">待审批</div>
+                            <div class="stat-icon"><i class="fas fa-clock"></i></div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="stat-card success">
+                            <div class="stat-value" id="statApproved">0</div>
+                            <div class="stat-label">已批准</div>
+                            <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="stat-card danger">
+                            <div class="stat-value" id="statRejected">0</div>
+                            <div class="stat-label">已驳回</div>
+                            <div class="stat-icon"><i class="fas fa-times-circle"></i></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">待审批申请</div>
+                    <div class="card-body">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>学生姓名</th>
+                                    <th>学号</th>
+                                    <th>申请设备</th>
+                                    <th>开始日期</th>
+                                    <th>结束日期</th>
+                                    <th>申请原因</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="applicationList"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Reject Modal -->
+    <div class="modal-overlay" id="rejectModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>驳回申请</h3>
+                <button class="modal-close" onclick="App.closeModal('rejectModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">驳回原因</label>
+                    <textarea class="form-control" id="rejectReason" rows="3" placeholder="请填写驳回原因..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="App.closeModal('rejectModal')">取消</button>
+                <button class="btn btn-danger" onclick="confirmReject()">确认驳回</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/data.js"></script>
+    <script src="../js/app.js"></script>
+    <script>
+        const user = App.checkAuth();
+        let currentRejectId = null;
+
+        // Mock student applications data
+        const studentApplications = [
+            { id: 101, studentId: 3, studentName: '李四', studentNo: 'S2024001', deviceId: 1, deviceName: '数字示波器', startDate: '2025-12-28', endDate: '2025-12-30', reason: '毕业设计实验测试', status: 'pending' },
+            { id: 102, studentId: 4, studentName: '赵小明', studentNo: 'S2024002', deviceId: 2, deviceName: '函数信号发生器', startDate: '2025-12-29', endDate: '2025-12-31', reason: '课程实验', status: 'pending' },
+            { id: 103, studentId: 3, studentName: '李四', studentNo: 'S2024001', deviceId: 4, deviceName: '频谱分析仪', startDate: '2025-12-20', endDate: '2025-12-22', reason: '项目研究', status: 'approved' },
+            { id: 104, studentId: 5, studentName: '孙丽丽', studentNo: 'S2024003', deviceId: 3, deviceName: '直流稳压电源', startDate: '2025-12-18', endDate: '2025-12-19', reason: '实验室课程', status: 'rejected' }
+        ];
+
+        if (user) {
+            document.getElementById('userName').textContent = user.username;
+
+            // Check if user is teacher
+            if (user.type !== 'teacher') {
+                App.showToast('仅限教师访问此页面', 'error');
+                setTimeout(() => App.navigate('device_list.html'), 1000);
+            } else {
+                // Add teacher menu
+                document.getElementById('userSidebar').insertAdjacentHTML('beforeend', `
+                    <div class="nav-group">
+                        <a href="#" class="nav-item nav-toggle" onclick="toggleSubmenu(event)"><i class="fas fa-user-graduate"></i>学生 <i class="fas fa-chevron-down ms-auto toggle-icon"></i></a>
+                        <div class="nav-submenu show">
+                            <a href="students.html" class="nav-item sub-item"><i class="fas fa-list"></i>学生列表</a>
+                            <a href="student_approval.html" class="nav-item sub-item active"><i class="fas fa-clipboard-check"></i>申请审批</a>
+                        </div>
+                    </div>
+                `);
+                render();
+            }
+        }
+
+        function toggleSubmenu(e) {
+            e.preventDefault();
+            const submenu = e.currentTarget.nextElementSibling;
+            const icon = e.currentTarget.querySelector('.toggle-icon');
+            submenu.classList.toggle('show');
+            icon.classList.toggle('fa-chevron-down');
+            icon.classList.toggle('fa-chevron-up');
+        }
+
+        function render() {
+            const pending = studentApplications.filter(a => a.status === 'pending');
+            const approved = studentApplications.filter(a => a.status === 'approved');
+            const rejected = studentApplications.filter(a => a.status === 'rejected');
+
+            document.getElementById('statPending').textContent = pending.length;
+            document.getElementById('statApproved').textContent = approved.length;
+            document.getElementById('statRejected').textContent = rejected.length;
+
+            document.getElementById('applicationList').innerHTML = pending.length ? pending.map(a => `
+                <tr>
+                    <td>${a.studentName}</td>
+                    <td>${a.studentNo}</td>
+                    <td>${a.deviceName}</td>
+                    <td>${a.startDate}</td>
+                    <td>${a.endDate}</td>
+                    <td>${a.reason}</td>
+                    <td>
+                        <button class="btn btn-sm btn-success me-1" onclick="approveApplication(${a.id})"><i class="fas fa-check"></i> 批准</button>
+                        <button class="btn btn-sm btn-danger" onclick="openRejectModal(${a.id})"><i class="fas fa-times"></i> 驳回</button>
+                    </td>
+                </tr>
+            `).join('') : '<tr><td colspan="7" class="text-center text-muted py-5">暂无待审批申请</td></tr>';
+        }
+
+        function approveApplication(id) {
+            const app = studentApplications.find(a => a.id === id);
+            if (app) {
+                app.status = 'approved';
+                App.showToast('已批准该申请');
+                render();
+            }
+        }
+
+        function openRejectModal(id) {
+            currentRejectId = id;
+            document.getElementById('rejectReason').value = '';
+            App.openModal('rejectModal');
+        }
+
+        function confirmReject() {
+            const reason = document.getElementById('rejectReason').value;
+            if (!reason) {
+                App.showToast('请填写驳回原因', 'error');
+                return;
+            }
+            const app = studentApplications.find(a => a.id === currentRejectId);
+            if (app) {
+                app.status = 'rejected';
+                App.closeModal('rejectModal');
+                App.showToast('已驳回该申请');
+                render();
+            }
+        }
+
+        function logout() { DataService.logout(); App.navigate('../index.html'); }
+    </script>
+</body>
+
+</html>
