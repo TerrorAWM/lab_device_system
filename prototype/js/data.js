@@ -17,23 +17,25 @@ const MockData = {
         { id: 7, username: '王五', password: '123456', phone: '13800000003', type: 'external', realName: '王五', organization: 'XX科技公司' },
         { id: 8, username: '刘经理', password: '123456', phone: '13900000001', type: 'external', realName: '刘伟', organization: '华为技术有限公司' },
         { id: 9, username: '陈工程师', password: '123456', phone: '13900000002', type: 'external', realName: '陈明', organization: '中兴通讯股份有限公司' },
-        { id: 10, username: '李研究员', password: '123456', phone: '13900000003', type: 'external', realName: '李芳', organization: '中国科学院' }
+        { id: 10, username: '李研究员', password: '123456', phone: '13900000003', type: 'external', realName: '李芳', organization: '中国科学院' },
+        // 设备管理员账户
+        { id: 101, username: '赵设备员', password: '123456', phone: '13900000003', type: 'device', realName: '赵飞'}
     ],
     admins: [
-        { id: 1, username: 'supervisor', password: 'admin123', role: 'supervisor', name: '王主任' },
+        { id: 1, username: 'supervisor', password: '123456', role: 'supervisor', name: '王主任' },
         { id: 2, username: 'device', password: '123456', role: 'device', name: '赵设备员' },
         { id: 3, username: 'finance', password: '123456', role: 'finance', name: '张财务' }
     ],
     adminRoles: {
         supervisor: { name: '实验室负责人', level: 1, permissions: ['dashboard', 'device', 'reservation', 'borrow', 'payment', 'user', 'maintenance', 'reports'] },
         device: { name: '设备管理员', level: 2, permissions: ['dashboard', 'device', 'reservation', 'borrow', 'maintenance'] },
-        finance: { name: '财务管理员', level: 3, permissions: ['dashboard', 'reservation', 'payment', 'reports'] }
+        finance: { name: '财务管理员', level: 3, permissions: ['dashboard', 'payment', 'reports'] }
     },
     // 审批流程定义
     approvalWorkflows: {
-        student: ['teacher', 'device', 'supervisor'],   // 学生 → 导师 → 设备管理员 → 实验室负责人
-        teacher: ['device', 'supervisor'],               // 教师 → 设备管理员 + 实验室负责人（同步）
-        external: ['device', 'supervisor', 'finance']    // 校外 → 设备管理员 + 实验室负责人（同步）→ 财务（需付款）
+        student: ['teacher', 'device'],   // 学生 → 导师 → 设备管理员
+        teacher: ['device'],               // 教师 → 设备管理员
+        external: ['device', 'supervisor', 'finance']    // 校外 → 设备管理员 → 实验室负责人 → 财务（需付款）
     },
     devices: [
         { id: 1, name: '示波器 A-001', category: '测量仪器', model: 'Tektronix TBS1102C', status: 0, location: '实验室A301', price: 50 },
@@ -47,42 +49,42 @@ const MockData = {
         // 1. 教师预约 - 已全部通过
         {
             id: 1, userId: 1, deviceId: 1, date: '2024-12-20', timeSlot: '08:00-10:00', status: 'approved', reason: '课程实验使用',
-            approvals: { device: 'approved', supervisor: 'approved' }
+            approvals: { device: 'approved' }
         },
-        // 2. 教师预约 - 设备已批，负责人待批
+        // 2. 教师预约 - 待批
         {
             id: 2, userId: 2, deviceId: 2, date: '2024-12-21', timeSlot: '10:00-12:00', status: 'pending', reason: '科研项目',
-            approvals: { device: 'approved', supervisor: 'pending' }
+            approvals: { device: 'pending' }
         },
-        // 3. 学生预约 - 导师已批，设备和负责人待批
+        // 3. 学生预约 - 导师已批，设备待批
         {
             id: 3, userId: 3, deviceId: 1, date: '2024-12-22', timeSlot: '14:00-16:00', status: 'pending', reason: '毕业设计测试',
-            approvals: { teacher: 'approved', device: 'pending', supervisor: 'pending' }
+            approvals: { teacher: 'approved', device: 'pending' }
         },
         // 4. 学生预约 - 待导师审批
         {
             id: 4, userId: 4, deviceId: 3, date: '2024-12-23', timeSlot: '16:00-18:00', status: 'pending', reason: '课程实验',
-            approvals: { teacher: 'pending', device: 'pending', supervisor: 'pending' }
+            approvals: { teacher: 'pending', device: 'pending' }
         },
         // 5. 学生预约 - 全部通过
         {
             id: 5, userId: 5, deviceId: 2, date: '2024-12-24', timeSlot: '08:00-10:00', status: 'approved', reason: '大创项目实验',
-            approvals: { teacher: 'approved', device: 'approved', supervisor: 'approved' }
+            approvals: { teacher: 'approved', device: 'approved' }
         },
         // 6. 学生预约 - 被导师驳回
         {
             id: 6, userId: 6, deviceId: 4, date: '2024-12-25', timeSlot: '10:00-12:00', status: 'rejected', reason: '个人学习',
-            approvals: { teacher: 'rejected', device: 'pending', supervisor: 'pending' }, rejectReason: '申请理由不充分'
+            approvals: { teacher: 'rejected' }, rejectReason: '申请理由不充分'
         },
         // 7. 校外人员预约 - 待设备和负责人审批
         {
             id: 7, userId: 8, deviceId: 3, date: '2024-12-26', timeSlot: '14:00-16:00', status: 'pending', reason: '企业项目测试',
-            approvals: { device: 'pending', supervisor: 'pending', finance: 'waiting' }
+            approvals: { device: 'pending', supervisor: 'waiting', finance: 'waiting' }
         },
         // 8. 校外人员预约 - 设备和负责人已批，待财务审批（未付款）
         {
             id: 8, userId: 9, deviceId: 1, date: '2024-12-27', timeSlot: '16:00-18:00', status: 'pending', reason: '科研合作项目',
-            approvals: { device: 'approved', supervisor: 'approved', finance: 'pending' }
+            approvals: { device: 'approved', supervisor: 'pending', finance: 'waiting' }
         },
         // 9. 校外人员预约 - 财务待审批（已付款）
         {
