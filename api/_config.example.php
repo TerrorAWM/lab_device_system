@@ -15,7 +15,7 @@ define('DB_USER', 'root');
 define('DB_PASS', 'your_password');
 
 // JWT 密钥（用于 Token 生成）
-define('JWT_SECRET', 'LAB_DEVICE_SYSTEM_20251220'); //your_jwt_secret_key
+define('JWT_SECRET', 'LAB_DEVICE_SYSTEM_20252026'); //your_jwt_secret_key
 
 // Token 过期时间（秒）
 define('TOKEN_EXPIRE', 86400 * 7); // 7 天

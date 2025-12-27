@@ -36,9 +36,9 @@ function requireAuth(): array
     
     $pdo = getDB();
     $stmt = $pdo->prepare('
-        SELECT u.* FROM users u
-        JOIN user_tokens ut ON u.id = ut.user_id
-        WHERE ut.token = ? AND ut.expires_at > NOW()
+        SELECT u.* FROM t_user u
+        JOIN t_user_token ut ON u.user_id = ut.user_id
+        WHERE ut.token = ? AND ut.expire_time > NOW()
     ');
     $stmt->execute([$token]);
     $user = $stmt->fetch();
@@ -66,9 +66,9 @@ function optionalAuth(): ?array
     
     $pdo = getDB();
     $stmt = $pdo->prepare('
-        SELECT u.* FROM users u
-        JOIN user_tokens ut ON u.id = ut.user_id
-        WHERE ut.token = ? AND ut.expires_at > NOW()
+        SELECT u.* FROM t_user u
+        JOIN t_user_token ut ON u.user_id = ut.user_id
+        WHERE ut.token = ? AND ut.expire_time > NOW()
     ');
     $stmt->execute([$token]);
     $user = $stmt->fetch();
