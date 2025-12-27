@@ -63,8 +63,9 @@ lab_device_system/
 ├─ js/                               # 用户侧脚本
 │  └─ bootstrap.bundle.min.js        # Bootstrap JS
 ├─ docs/                             # API 文档
-│  ├─ user_side.md                   # 用户侧 API 文档
-│  └─ admin_side.md                  # 管理端 API 文档
+│  └─ api/
+│     ├─ user_api.md                 # 用户端 API 使用文档
+│     └─ admin_api.md                # 管理端 API 使用文档
 ├─ sql/                              # SQL 脚本
 │  └─ init.sql                       # 完整初始化脚本（建库+建表+示例数据）
 ├─ resources/                        # 项目资源文档
@@ -338,10 +339,35 @@ php -S 0.0.0.0:8080 -t .
 
 ## API 文档
 
-| 文档 | 描述 |
-| --- | --- |
-| `docs/user_side.md` | 用户侧 API 文档 |
-| `docs/admin_side.md` | 管理端 API 文档 |
+| 文档 | 路径 | 描述 |
+| --- | --- | --- |
+| 用户端 API | `docs/api/user_api.md` | 完整的用户侧 API 使用文档 |
+| 管理端 API | `docs/api/admin_api.md` | 完整的管理端 API 使用文档 |
+
+### API 测试台
+
+项目提供两个交互式 API 测试页面，支持动态参数输入：
+
+| 测试台 | 路径 | 描述 |
+| --- | --- | --- |
+| 用户端测试台 | `api/test_api.php` | 测试所有用户侧 API 接口 |
+| 管理端测试台 | `admin/api/test_api.php` | 测试所有管理端 API 接口 |
+
+**测试台功能：**
+- Token 自动保存到 localStorage
+- 支持动态输入参数
+- JSON 响应语法高亮显示
+- 显示请求耗时
+
+**访问地址：**
+```
+http://localhost:8080/api/test_api.php
+http://localhost:8080/admin/api/test_api.php
+```
+
+### 密码安全
+
+所有密码使用 **bcrypt** 加密存储（`password_hash()` / `password_verify()`），测试账号默认密码均为 `123456`。
 
 ---
 
