@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS t_user (
     phone VARCHAR(20) DEFAULT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     status TINYINT DEFAULT 1,
+    need_change_pwd TINYINT DEFAULT 0,
     PRIMARY KEY (user_id),
     UNIQUE KEY uk_username (username)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -133,6 +134,7 @@ CREATE TABLE IF NOT EXISTS t_reservation (
     time_slot ENUM('08:00-10:00', '10:00-12:00', '14:00-16:00', '16:00-18:00', '19:00-21:00') NOT NULL,
     purpose TEXT,
     status TINYINT DEFAULT 0,
+    current_step INT DEFAULT 1,
     reject_reason VARCHAR(255),
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     approvals JSON,
@@ -180,6 +182,38 @@ CREATE TABLE IF NOT EXISTS t_payment (
     CONSTRAINT fk_pay_user FOREIGN KEY (user_id) REFERENCES t_user(user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- ==========================================
+-- 5. 审批流程模块
+-- ==========================================
+
+CREATE TABLE IF NOT EXISTS t_approval_workflow (
+    workflow_id INT NOT NULL AUTO_INCREMENT,
+    user_type ENUM('teacher', 'student', 'external') NOT NULL,
+    step_order INT NOT NULL,
+    role_type ENUM('advisor', 'device', 'supervisor', 'finance') NOT NULL,
+    is_parallel TINYINT DEFAULT 0,
+    is_payment_required TINYINT DEFAULT 0,
+    is_enabled TINYINT DEFAULT 1,
+    description VARCHAR(100),
+    PRIMARY KEY (workflow_id),
+    UNIQUE KEY uk_workflow_step (user_type, step_order, role_type)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS t_approval_log (
+    log_id INT NOT NULL AUTO_INCREMENT,
+    reservation_id INT NOT NULL,
+    step_order INT NOT NULL,
+    role_type ENUM('advisor', 'device', 'supervisor', 'finance') NOT NULL,
+    approver_id INT NOT NULL,
+    approver_type ENUM('user', 'admin') NOT NULL DEFAULT 'admin',
+    approver_name VARCHAR(50),
+    action ENUM('approve', 'reject') NOT NULL,
+    reason VARCHAR(255),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (log_id),
+    KEY idx_reservation (reservation_id),
+    CONSTRAINT fk_approval_log_res FOREIGN KEY (reservation_id) REFERENCES t_reservation(reservation_id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ==========================================
 -- 5. 初始化数据 (Seeds)
@@ -235,3 +269,19 @@ INSERT INTO t_device (device_name, model, manufacturer, category, price, rent_pr
 ('信号发生器 C-003', 'DG1022Z', 'RIGOL', '信号源', 1800.00, 30.00, 1, '实验室A302'),
 ('电源供应器 D-004', 'KA3005D', 'KORAD', '电源设备', 500.00, 20.00, 2, '实验室A302'),
 ('逻辑分析仪 E-005', 'Logic Pro 16', 'Saleae', '分析仪器', 6000.00, 80.00, 3, '实验室A303');
+
+-- 审批流程配置数据
+-- 学生审批流程：导师 → 设备管理员
+INSERT INTO t_approval_workflow (user_type, step_order, role_type, is_payment_required, description) VALUES 
+('student', 1, 'advisor', 0, '导师审批'),
+('student', 2, 'device', 0, '设备管理员审批');
+
+-- 教师审批流程：设备管理员
+INSERT INTO t_approval_workflow (user_type, step_order, role_type, is_payment_required, description) VALUES 
+('teacher', 1, 'device', 0, '设备管理员审批');
+
+-- 校外人员审批流程：设备管理员 + 实验室负责人(并行) → 支付 → 财务
+INSERT INTO t_approval_workflow (user_type, step_order, role_type, is_parallel, is_payment_required, description) VALUES 
+('external', 1, 'device', 1, 0, '设备管理员审批'),
+('external', 1, 'supervisor', 1, 0, '实验室负责人审批'),
+('external', 2, 'finance', 0, 1, '财务审批');

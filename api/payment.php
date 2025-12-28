@@ -76,11 +76,11 @@ function getPaymentList(array $user): void
     $stmt->execute($params);
     $payments = $stmt->fetchAll();
 
-    $statusMap = [0 => 'pending', 1 => 'paid', 2 => 'refunded'];
+    $statusMap = [0 => 'pending', 1 => 'paid', 2 => 'cancelled'];
 
     $items = array_map(function($p) use ($statusMap) {
         return [
-            'id' => $p['payment_id'],
+            'payment_id' => $p['payment_id'],
             'order_no' => $p['order_no'],
             'reservation_id' => $p['reservation_id'],
             'device_name' => $p['device_name'],
@@ -124,11 +124,12 @@ function getPendingPayments(array $user): void
 
     $items = array_map(function($p) {
         return [
-            'id' => $p['payment_id'],
+            'payment_id' => $p['payment_id'],
             'order_no' => $p['order_no'],
             'reservation_id' => $p['reservation_id'],
             'device_name' => $p['device_name'],
             'amount' => (float)$p['amount'],
+            'status' => 'pending',
             'description' => $p['description'],
             'created_at' => $p['created_at']
         ];

@@ -74,7 +74,8 @@ function getPersonalInfo(array $user): void
 
         case 'student':
             $stmt = $pdo->prepare('
-                SELECT s.student_no, s.major, s.college, s.advisor_id, u.real_name as advisor_name
+                SELECT s.student_no, s.major, s.college, s.advisor_id, 
+                       u.real_name as advisor_name, u.phone as advisor_phone
                 FROM t_user_student s
                 LEFT JOIN t_user u ON s.advisor_id = u.user_id
                 WHERE s.user_id = ?
@@ -87,6 +88,7 @@ function getPersonalInfo(array $user): void
                 $result['college'] = $ext['college'];
                 $result['advisor_id'] = $ext['advisor_id'];
                 $result['advisor_name'] = $ext['advisor_name'];
+                $result['advisor_phone'] = $ext['advisor_phone'];
             }
             break;
 

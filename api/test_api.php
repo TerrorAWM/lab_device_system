@@ -180,6 +180,28 @@
                             <button class="btn btn-success api-btn" onclick="getApprovals()"><i class="fas fa-list me-1"></i>待审批列表</button>
                             <button class="btn btn-primary api-btn" onclick="approveStudent()"><i class="fas fa-check me-1"></i>批准</button>
                             <button class="btn btn-danger api-btn" onclick="rejectStudent()"><i class="fas fa-times me-1"></i>驳回</button>
+                            <button class="btn btn-secondary api-btn" onclick="getApprovalHistory()"><i class="fas fa-history me-1"></i>审批历史</button>
+                        </div>
+                    </div>
+
+                    <!-- 学生管理 -->
+                    <div class="api-section">
+                        <h5><i class="fas fa-users me-2"></i>学生管理 (需教师账号)</h5>
+                        <div class="p-3">
+                            <div class="row g-2 mb-2">
+                                <div class="col-4"><input type="text" class="form-control form-control-sm" id="stuNo" placeholder="学号" value="S2025001"></div>
+                                <div class="col-4"><input type="text" class="form-control form-control-sm" id="stuName" placeholder="姓名" value="测试学生"></div>
+                                <div class="col-4"><input type="text" class="form-control form-control-sm" id="stuMajor" placeholder="专业"></div>
+                                <div class="col-6"><input type="text" class="form-control form-control-sm" id="stuCollege" placeholder="学院"></div>
+                                <div class="col-6"><input type="text" class="form-control form-control-sm" id="stuPhone" placeholder="手机号"></div>
+                            </div>
+                            <button class="btn btn-success api-btn" onclick="getStudents()"><i class="fas fa-list me-1"></i>学生列表</button>
+                            <button class="btn btn-primary api-btn" onclick="addStudent()"><i class="fas fa-plus me-1"></i>添加学生</button>
+                            <button class="btn btn-info api-btn" onclick="batchImportStudents()"><i class="fas fa-file-import me-1"></i>批量导入(JSON)</button>
+                            <button class="btn btn-warning api-btn" onclick="removeStudent()"><i class="fas fa-unlink me-1"></i>解绑学生</button>
+                            <div class="mt-2">
+                                <input type="number" class="form-control form-control-sm d-inline-block" id="stuUserId" placeholder="学生用户ID" style="width:120px">
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -367,11 +389,38 @@
 
         // 教师审批
         async function getApprovals() { await apiRequest('GET', '/approval.php'); }
+        async function getApprovalHistory() { await apiRequest('GET', '/approval.php?action=history'); }
         async function approveStudent() { await apiRequest('POST', '/approval.php?action=approve', { reservation_id: parseInt(document.getElementById('approvalResId').value) }); }
         async function rejectStudent() { await apiRequest('POST', '/approval.php?action=reject', { 
             reservation_id: parseInt(document.getElementById('approvalResId').value), 
             reason: document.getElementById('rejectReason').value 
         }); }
+
+        // 学生管理
+        async function getStudents() { await apiRequest('GET', '/student.php'); }
+        async function addStudent() {
+            await apiRequest('POST', '/student.php', {
+                student_no: document.getElementById('stuNo').value,
+                real_name: document.getElementById('stuName').value,
+                major: document.getElementById('stuMajor').value,
+                college: document.getElementById('stuCollege').value,
+                phone: document.getElementById('stuPhone').value
+            });
+        }
+        async function batchImportStudents() {
+            // 示例批量导入
+            await apiRequest('POST', '/student.php?action=import', {
+                students: [
+                    { student_no: 'S2025001', real_name: '测试学生1', major: '软件工程', college: '计算机学院' },
+                    { student_no: 'S2025002', real_name: '测试学生2', major: '计算机科学', college: '计算机学院' }
+                ]
+            });
+        }
+        async function removeStudent() { 
+            const userId = document.getElementById('stuUserId').value;
+            if(!userId) return alert('请输入学生用户ID');
+            await apiRequest('POST', '/student.php?action=remove', { user_id: parseInt(userId) }); 
+        }
     </script>
 </body>
 </html>

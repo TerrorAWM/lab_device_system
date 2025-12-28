@@ -1,9 +1,66 @@
 # 实验室设备管理系统 - README
 
-> 更新：2025-12-27
+> 更新：2025-12-28
 > 
 > 本项目是基于 PHP + MariaDB 的实验室设备管理系统后端示例，前后端分离，前端页面使用 Bootstrap 5.x 做快速 UI。
 > 数据库名统一使用 `lab_device_system`。
+
+---
+
+## 快速启动
+
+使用 PHP 内置服务器快速启动（开发测试推荐）：
+
+```bash
+# 在项目根目录运行
+php -S localhost:8080
+
+# 或者绑定所有网卡（可局域网访问）
+php -S 0.0.0.0:8080
+```
+
+启动后访问：
+- 用户端：http://localhost:8080/
+- 管理端：http://localhost:8080/admin/
+- 用户端 API 测试：http://localhost:8080/api/test_api.php
+- 管理端 API 测试：http://localhost:8080/admin/api/test_api.php
+
+---
+
+## 最近更新
+
+### 2025-12-28
+
+**API 变更**
+
+| 文件 | 变更说明 |
+| --- | --- |
+| `api/personal.php` | 学生用户获取个人信息时，新增返回 `advisor_phone` 字段（导师电话） |
+
+**数据库说明**
+
+- `t_user_student` 表通过 `advisor_id` 字段关联导师（`t_user` 表）
+- 导师电话来源于 `t_user.phone` 字段，需确保导师用户已填写电话
+
+**学生个人信息返回示例**
+
+```json
+{
+  "code": 0,
+  "data": {
+    "user_id": 3,
+    "username": "李四",
+    "real_name": "李四",
+    "user_type": "student",
+    "student_no": "S2024001",
+    "major": "软件工程",
+    "college": "物联网工程学院",
+    "advisor_id": 1,
+    "advisor_name": "张三",
+    "advisor_phone": "13800138000"
+  }
+}
+```
 
 ---
 

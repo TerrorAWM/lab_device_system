@@ -80,7 +80,7 @@ function createReservation(array $user): void
     $pdo = getDB();
 
     // 检查设备是否存在且可用
-    $stmt = $pdo->prepare('SELECT device_id, device_name, status FROM t_device WHERE device_id = ?');
+    $stmt = $pdo->prepare('SELECT device_id, device_name, status, rent_price FROM t_device WHERE device_id = ?');
     $stmt->execute([$deviceId]);
     $device = $stmt->fetch();
 
@@ -102,21 +102,65 @@ function createReservation(array $user): void
         respError('该时段已被预约');
     }
 
-    // 创建预约
-    $stmt = $pdo->prepare('
-        INSERT INTO t_reservation (user_id, device_id, reserve_date, time_slot, purpose, status, created_at)
-        VALUES (?, ?, ?, ?, ?, 0, NOW())
-    ');
-    $stmt->execute([$user['user_id'], $deviceId, $reserveDate, $timeSlot, $purpose]);
-    $reservationId = (int)$pdo->lastInsertId();
+    try {
+        $pdo->beginTransaction();
 
-    respOK([
-        'reservation_id' => $reservationId,
-        'device_name' => $device['device_name'],
-        'reserve_date' => $reserveDate,
-        'time_slot' => $timeSlot,
-        'status' => 'pending'
-    ], '预约申请已提交');
+        // 创建预约
+        $stmt = $pdo->prepare('
+            INSERT INTO t_reservation (user_id, device_id, reserve_date, time_slot, purpose, status, current_step, created_at)
+            VALUES (?, ?, ?, ?, ?, 0, 1, NOW())
+        ');
+        $stmt->execute([$user['user_id'], $deviceId, $reserveDate, $timeSlot, $purpose]);
+        $reservationId = (int)$pdo->lastInsertId();
+
+        // 创建支付订单
+        // 校外人员需要支付租金，校内人员(学生/教师)金额为0且自动标记已支付
+        $isExternal = ($user['user_type'] === 'external');
+        $amount = $isExternal ? (float)$device['rent_price'] : 0.00;
+        $paymentStatus = $isExternal ? 0 : 1;  // 校内自动已支付
+        $orderNo = 'PAY' . date('YmdHis') . str_pad((string)$reservationId, 6, '0', STR_PAD_LEFT);
+
+        $stmt = $pdo->prepare('
+            INSERT INTO t_payment (reservation_id, user_id, order_no, amount, status, description, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, NOW())
+        ');
+        $desc = $isExternal ? '设备租借费用' : '校内免费使用';
+        $stmt->execute([$reservationId, $user['user_id'], $orderNo, $amount, $paymentStatus, $desc]);
+        $paymentId = (int)$pdo->lastInsertId();
+
+        // 校内用户自动设置支付时间
+        if (!$isExternal) {
+            $stmt = $pdo->prepare('UPDATE t_payment SET pay_time = NOW() WHERE payment_id = ?');
+            $stmt->execute([$paymentId]);
+        }
+
+        $pdo->commit();
+
+        $response = [
+            'reservation_id' => $reservationId,
+            'device_name' => $device['device_name'],
+            'reserve_date' => $reserveDate,
+            'time_slot' => $timeSlot,
+            'status' => 'pending',
+            'payment' => [
+                'payment_id' => $paymentId,
+                'order_no' => $orderNo,
+                'amount' => $amount,
+                'status' => $paymentStatus == 1 ? 'paid' : 'pending'
+            ]
+        ];
+
+        $msg = '预约申请已提交';
+        if ($isExternal && $amount > 0) {
+            $msg .= '，请完成支付（¥' . number_format($amount, 2) . '）';
+        }
+
+        respOK($response, $msg);
+
+    } catch (Exception $e) {
+        $pdo->rollBack();
+        respError('预约创建失败：' . $e->getMessage());
+    }
 }
 
 /**
@@ -336,9 +380,23 @@ function cancelReservation(array $user): void
         respError('该预约不能取消');
     }
 
-    // 更新状态为已取消
-    $stmt = $pdo->prepare('UPDATE t_reservation SET status = 3 WHERE reservation_id = ?');
-    $stmt->execute([$reservationId]);
+    try {
+        $pdo->beginTransaction();
 
-    respOK(null, '预约已取消');
+        // 更新预约状态为已取消
+        $stmt = $pdo->prepare('UPDATE t_reservation SET status = 3 WHERE reservation_id = ?');
+        $stmt->execute([$reservationId]);
+
+        // 同时取消支付订单 (status=2 表示已取消)
+        $stmt = $pdo->prepare('UPDATE t_payment SET status = 2 WHERE reservation_id = ? AND status = 0');
+        $stmt->execute([$reservationId]);
+
+        $pdo->commit();
+
+        respOK(null, '预约已取消');
+
+    } catch (Exception $e) {
+        $pdo->rollBack();
+        respError('取消失败：' . $e->getMessage());
+    }
 }

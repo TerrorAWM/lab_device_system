@@ -141,7 +141,53 @@
 | reservation_id | INT | 关联预约 |
 | user_id | INT | 用户ID |
 | amount | DECIMAL(10,2) | 金额(校内为0) |
-| status | TINYINT | 0待支付 1已支付 |
+| status | TINYINT | 0待支付 1已支付 2已取消 |
+
+---
+
+### 审批流程模块
+
+#### t_approval_workflow - 审批流程配置表
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| workflow_id | INT | 主键 |
+| user_type | ENUM | teacher/student/external |
+| step_order | INT | 步骤顺序 1,2,3... |
+| role_type | ENUM | advisor/device/supervisor/finance |
+| is_payment_required | TINYINT | 是否需要付款 |
+| is_enabled | TINYINT | 是否启用 |
+| description | VARCHAR(100) | 步骤描述 |
+
+**审批角色说明：**
+
+| 角色 | 说明 |
+| --- | --- |
+| advisor | 导师 |
+| device | 设备管理员 |
+| supervisor | 实验室负责人 |
+| finance | 财务 |
+
+**默认审批流程：**
+
+| 用户类型 | 审批链路 |
+| --- | --- |
+| 学生 | 导师 → 设备管理员 |
+| 教师 | 设备管理员 |
+| 校外 | 设备管理员 + 实验室负责人(并行) → 支付 → 财务 |
+
+#### t_approval_log - 审批日志表
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| log_id | INT | 主键 |
+| reservation_id | INT | 预约ID |
+| step_order | INT | 审批步骤 |
+| role_type | ENUM | 审批角色 |
+| approver_id | INT | 审批人ID |
+| approver_type | ENUM | user/admin |
+| action | ENUM | approve/reject |
+| reason | VARCHAR(255) | 原因/备注 |
 
 ---
 

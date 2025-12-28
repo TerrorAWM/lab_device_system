@@ -354,6 +354,154 @@
 
 ---
 
+## 8. 审批流程管理
+
+> ⚠️ 查询接口所有管理员可用，修改接口仅限 supervisor 权限
+
+### 8.1 获取审批流程配置
+`GET /admin/api/workflow.php`
+
+**请求头:** `Authorization: Bearer <token>`
+
+**响应字段:**
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| workflows | object | 按用户类型分组的审批流程 |
+| role_types | object | 角色类型映射 |
+| user_types | object | 用户类型映射 |
+
+**响应示例:**
+```json
+{
+  "code": 0,
+  "data": {
+    "workflows": {
+      "student": [
+        {
+          "workflow_id": 1,
+          "step_order": 1,
+          "role_type": "advisor",
+          "is_payment_required": false,
+          "is_enabled": true,
+          "description": "导师审批"
+        },
+        {
+          "workflow_id": 2,
+          "step_order": 2,
+          "role_type": "device",
+          "is_payment_required": false,
+          "is_enabled": true,
+          "description": "设备管理员审批"
+        }
+      ],
+      "teacher": [
+        {
+          "workflow_id": 3,
+          "step_order": 1,
+          "role_type": "device",
+          "is_payment_required": false,
+          "is_enabled": true,
+          "description": "设备管理员审批"
+        }
+      ],
+      "external": [
+        {
+          "workflow_id": 4,
+          "step_order": 1,
+          "role_type": "device",
+          "is_parallel": true,
+          "is_payment_required": false,
+          "is_enabled": true,
+          "description": "设备管理员审批"
+        },
+        {
+          "workflow_id": 5,
+          "step_order": 1,
+          "role_type": "supervisor",
+          "is_parallel": true,
+          "is_payment_required": false,
+          "is_enabled": true,
+          "description": "实验室负责人审批"
+        },
+        {
+          "workflow_id": 6,
+          "step_order": 2,
+          "role_type": "finance",
+          "is_payment_required": true,
+          "is_enabled": true,
+          "description": "财务审批"
+        }
+      ]
+    },
+    "role_types": {
+      "advisor": "导师",
+      "device": "设备管理员",
+      "supervisor": "实验室负责人",
+      "finance": "财务"
+    },
+    "user_types": {
+      "student": "学生",
+      "teacher": "教师",
+      "external": "校外人员"
+    }
+  }
+}
+```
+
+---
+
+### 8.2 更新审批流程配置
+`POST /admin/api/workflow.php`
+
+> ⚠️ 需 supervisor 权限
+
+**请求头:** `Authorization: Bearer <token>`
+
+**请求参数:**
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| workflow_id | int | ✓ | 审批步骤ID |
+| is_payment_required | bool | - | 是否需要支付 |
+| is_enabled | bool | - | 是否启用 |
+| description | string | - | 步骤描述 |
+
+**响应示例:**
+```json
+{
+  "code": 0,
+  "message": "审批流程配置已更新",
+  "data": null
+}
+```
+
+---
+
+### 8.3 切换步骤启用状态
+`POST /admin/api/workflow.php?action=toggle`
+
+> ⚠️ 需 supervisor 权限
+
+**请求头:** `Authorization: Bearer <token>`
+
+**请求参数:**
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| workflow_id | int | ✓ | 审批步骤ID |
+
+**响应示例:**
+```json
+{
+  "code": 0,
+  "message": "已启用该审批步骤",
+  "data": {
+    "workflow_id": 1,
+    "is_enabled": true
+  }
+}
+```
+
+---
+
 ## 安全说明
 
 1. **密码加密**: 所有密码使用 PHP `password_hash()` (bcrypt) 加密存储
