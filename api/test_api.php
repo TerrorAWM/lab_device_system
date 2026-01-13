@@ -223,7 +223,7 @@
     </div>
 
     <script>
-        const API_BASE = '/api';
+        const API_BASE = '.';
         let token = localStorage.getItem('user_token') || '';
         
         // 初始化日期
