@@ -187,9 +187,137 @@
 
 ---
 
-## 4. 预约审批
+## 4. 设备检修管理
 
-### 4.1 预约列表
+### 4.1 检修记录列表
+`GET /admin/api/maintenance.php`
+
+**查询参数:**
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| keyword | string | 搜索关键词（设备名称/检修原因） |
+| device_id | int | 按设备ID筛选 |
+| start_date | string | 开始日期 |
+| end_date | string | 结束日期 |
+| page | int | 页码 |
+| page_size | int | 每页数量 |
+
+**响应示例:**
+```json
+{
+  "code": 0,
+  "data": {
+    "items": [
+      {
+        "id": 1,
+        "device_id": 5,
+        "device_name": "逻辑分析仪 E-005",
+        "model": "Logic Pro 16",
+        "start_time": "2025-01-10 08:00:00",
+        "end_time": "2025-01-15 18:00:00",
+        "reason": "年度维护保养",
+        "operator_id": 2,
+        "operator_name": "赵设备员",
+        "created_at": "2025-01-09 10:00:00"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "page_size": 20,
+      "total": 1,
+      "total_pages": 1
+    }
+  }
+}
+```
+
+---
+
+### 4.2 检修记录详情
+`GET /admin/api/maintenance.php?id=<id>`
+
+---
+
+### 4.3 按设备查询检修历史
+`GET /admin/api/maintenance.php?device_id=<device_id>`
+
+**响应示例:**
+```json
+{
+  "code": 0,
+  "data": {
+    "device": {
+      "device_id": 5,
+      "device_name": "逻辑分析仪 E-005"
+    },
+    "items": [...],
+    "pagination": {...}
+  }
+}
+```
+
+---
+
+### 4.4 新增检修记录
+`POST /admin/api/maintenance.php?action=create`
+
+**请求参数:**
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| device_id | int | ✓ | 设备ID |
+| start_time | string | ✓ | 开始时间 (YYYY-MM-DD HH:mm:ss) |
+| end_time | string | ✓ | 结束时间 (YYYY-MM-DD HH:mm:ss) |
+| reason | string | - | 检修原因 |
+
+**操作效果:**
+- 创建检修记录
+- 自动检测时间冲突
+- 如检修时间包含当前时间，设备状态自动改为"检修中"
+
+**响应示例:**
+```json
+{
+  "code": 0,
+  "message": "检修记录添加成功",
+  "data": {
+    "id": 1,
+    "device_id": 5
+  }
+}
+```
+
+---
+
+### 4.5 更新检修记录
+`POST /admin/api/maintenance.php?action=update`
+
+**请求参数:**
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| id | int | ✓ | 检修记录ID |
+| start_time | string | - | 开始时间 |
+| end_time | string | - | 结束时间 |
+| reason | string | - | 检修原因 |
+
+---
+
+### 4.6 删除检修记录
+`POST /admin/api/maintenance.php?action=delete`
+
+**请求参数:**
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| id | int | ✓ | 检修记录ID |
+
+**操作效果:**
+- 删除检修记录
+- 如设备无其他进行中的检修，自动恢复设备为"可用"状态
+
+---
+
+## 5. 预约审批
+
+### 5.1 预约列表
 `GET /admin/api/reservation.php`
 
 **查询参数:**
@@ -201,12 +329,12 @@
 
 ---
 
-### 4.2 预约详情
+### 5.2 预约详情
 `GET /admin/api/reservation.php?id=<reservation_id>`
 
 ---
 
-### 4.3 批准预约
+### 5.3 批准预约
 `POST /admin/api/reservation.php?action=approve`
 
 **请求参数:**
@@ -222,7 +350,7 @@
 
 ---
 
-### 4.4 驳回预约
+### 5.4 驳回预约
 `POST /admin/api/reservation.php?action=reject`
 
 **请求参数:**
@@ -233,9 +361,9 @@
 
 ---
 
-## 5. 借用管理
+## 6. 借用管理
 
-### 5.1 借用列表
+### 6.1 借用列表
 `GET /admin/api/borrow.php`
 
 **查询参数:**
@@ -246,12 +374,12 @@
 
 ---
 
-### 5.2 借用详情
+### 6.2 借用详情
 `GET /admin/api/borrow.php?id=<borrow_id>`
 
 ---
 
-### 5.3 发放设备
+### 6.3 发放设备
 `POST /admin/api/borrow.php?action=dispatch`
 
 **请求参数:**
@@ -261,7 +389,7 @@
 
 ---
 
-### 5.4 确认归还
+### 6.4 确认归还
 `POST /admin/api/borrow.php?action=confirm_return`
 
 **请求参数:**
@@ -277,9 +405,9 @@
 
 ---
 
-## 6. 收费管理
+## 7. 收费管理
 
-### 6.1 订单列表
+### 7.1 订单列表
 `GET /admin/api/payment.php`
 
 **查询参数:**
@@ -290,12 +418,12 @@
 
 ---
 
-### 6.2 订单详情
+### 7.2 订单详情
 `GET /admin/api/payment.php?id=<payment_id>`
 
 ---
 
-### 6.3 创建收费单
+### 7.3 创建收费单
 `POST /admin/api/payment.php?action=create`
 
 **请求参数:**
@@ -308,7 +436,7 @@
 
 ---
 
-### 6.4 标记已支付
+### 7.4 标记已支付
 `POST /admin/api/payment.php?action=mark_paid`
 
 **请求参数:**
@@ -318,9 +446,9 @@
 
 ---
 
-## 7. 用户管理
+## 8. 用户管理
 
-### 7.1 用户列表
+### 8.1 用户列表
 `GET /admin/api/user.php`
 
 **查询参数:**
@@ -332,12 +460,12 @@
 
 ---
 
-### 7.2 用户详情
+### 8.2 用户详情
 `GET /admin/api/user.php?id=<user_id>`
 
 ---
 
-### 7.3 禁用/启用用户
+### 8.3 禁用/启用用户
 `POST /admin/api/user.php?action=toggle_status`
 
 > ⚠️ 需 supervisor 权限
@@ -354,11 +482,11 @@
 
 ---
 
-## 8. 审批流程管理
+## 9. 审批流程管理
 
 > ⚠️ 查询接口所有管理员可用，修改接口仅限 supervisor 权限
 
-### 8.1 获取审批流程配置
+### 9.1 获取审批流程配置
 `GET /admin/api/workflow.php`
 
 **请求头:** `Authorization: Bearer <token>`
@@ -450,7 +578,7 @@
 
 ---
 
-### 8.2 更新审批流程配置
+### 9.2 更新审批流程配置
 `POST /admin/api/workflow.php`
 
 > ⚠️ 需 supervisor 权限
@@ -476,7 +604,7 @@
 
 ---
 
-### 8.3 切换步骤启用状态
+### 9.3 切换步骤启用状态
 `POST /admin/api/workflow.php?action=toggle`
 
 > ⚠️ 需 supervisor 权限
