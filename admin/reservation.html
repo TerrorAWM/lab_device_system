@@ -171,47 +171,19 @@
 
                 // 解析审批进度
                 let approvals = {};
-                if (r.approvals) {
-                    if (typeof r.approvals === 'string') {
-                        try {
-                            approvals = JSON.parse(r.approvals);
-                        } catch (e) {
-                            console.error('解析审批进度失败:', e);
-                        }
-                    } else if (typeof r.approvals === 'object') {
-                        approvals = r.approvals;
-                    }
+                try {
+                    approvals = r.approvals ? JSON.parse(r.approvals) : {};
+                } catch (e) {
+                    console.error('解析审批进度失败:', e);
                 }
 
                 // 生成审批链显示
-                let approvalChain = Object.entries(approvals).map(([role, data]) => {
+                const approvalChain = Object.entries(approvals).map(([role, data]) => {
                     const roleName = roleLabels[role] || role;
-                    // 根据action判断状态
-                    let statusClass = 'waiting';
-                    let statusText = '等待';
-                    if (data.action === 'approve') {
-                        statusClass = 'approved';
-                        statusText = '已批';
-                    } else if (data.action === 'reject') {
-                        statusClass = 'rejected';
-                        statusText = '驳回';
-                    } else if (data.status === 'pending') {
-                        statusClass = 'pending';
-                        statusText = '待审';
-                    }
+                    const statusClass = data.status || 'waiting';
+                    const statusText = getStatusText(data.status);
                     return `<span class="approval-node ${statusClass}">${roleName}: ${statusText}</span>`;
                 }).join('');
-                
-                // 如果没有审批记录，根据用户类型显示预期审批流程
-                if (Object.keys(approvals).length === 0) {
-                    if (r.user_type === 'teacher') {
-                        approvalChain = '<span class="approval-node pending">设备管理员: 待审</span>';
-                    } else if (r.user_type === 'student') {
-                        approvalChain = '<span class="approval-node waiting">导师: 等待</span><span class="approval-node pending">设备管理员: 待审</span>';
-                    } else if (r.user_type === 'external') {
-                        approvalChain = '<span class="approval-node pending">设备管理员: 待审</span>';
-                    }
-                }
 
                 // 判断是否可以审批
                 const canApprove = checkCanApprove(r, admin.role, approvals);
@@ -254,78 +226,45 @@
             return map[status] || status;
         }
 
-        // 检查校外人员是否已付款（用于设备管理员第二次确认）
-        function checkPaymentStatus(reservationId) {
-            // 这里可以通过API查询付款状态，暂时返回true
-            // 实际应该调用API检查
-            return true;
-        }
-
         function checkCanApprove(reservation, adminRole, approvals) {
             // 根据管理员角色和审批流程判断是否可以审批
             const userType = reservation.user_type;
 
-            // 设备管理员：可以审批所有类型
-            if (adminRole === 'device') {
-                // 检查设备管理员是否已审批过
-                const deviceApproval = approvals['device'];
-                if (deviceApproval) {
-                    // 如果已审批过，检查是否是校外人员的第二次确认
-                    if (userType === 'external' && deviceApproval.action === 'approve') {
-                        // 校外人员第二次确认：需要负责人和财务都已批准
-                        const supervisorApproval = approvals['supervisor'];
-                        const financeApproval = approvals['finance'];
-                        // 检查是否已付款（通过检查是否有财务审批记录）
-                        if (supervisorApproval && supervisorApproval.action === 'approve' && 
-                            financeApproval && financeApproval.action === 'approve') {
-                            // 可以确认（第二次审批）
-                            return true;
-                        }
-                    }
-                    // 其他情况已审批过，不能再审批
-                    return false;
-                }
-
-                // 未审批过的情况
-                if (userType === 'teacher') {
-                    // 教师：设备管理员直接审批
-                    return true;
-                } else if (userType === 'student') {
-                    // 学生：需要导师先批准
-                    const advisorApproval = approvals['advisor'];
-                    return advisorApproval && advisorApproval.action === 'approve';
-                } else if (userType === 'external') {
-                    // 校外人员：设备管理员第一次审批（检查可用性）
-                    return true;
-                }
-                return false;
-            }
-
             // 实验室负责人：只审批校外人员，且需要设备管理员已批准
             if (adminRole === 'supervisor') {
                 if (userType !== 'external') return false;
-                const supervisorApproval = approvals['supervisor'];
-                const deviceApproval = approvals['device'];
-                // 负责人还未审批，且设备管理员已批准
-                return !supervisorApproval && deviceApproval && deviceApproval.action === 'approve';
+                const supervisorNode = approvals['supervisor'];
+                const deviceNode = approvals['device'];
+                return supervisorNode && supervisorNode.status === 'pending' &&
+                    deviceNode && deviceNode.status === 'approved';
+            }
+
+            // 设备管理员：可以审批所有类型
+            if (adminRole === 'device') {
+                const deviceNode = approvals['device'];
+                if (!deviceNode || deviceNode.status !== 'pending') return false;
+
+                // 学生需要导师先批准
+                if (userType === 'student') {
+                    const advisorNode = approvals['advisor'];
+                    return advisorNode && advisorNode.status === 'approved';
+                }
+                return true;
             }
 
             // 财务：只审批校外人员，且需要设备管理员和负责人都已批准，并且已付款
             if (adminRole === 'finance') {
                 if (userType !== 'external') return false;
-                const financeApproval = approvals['finance'];
-                const deviceApproval = approvals['device'];
-                const supervisorApproval = approvals['supervisor'];
+                const financeNode = approvals['finance'];
+                const deviceNode = approvals['device'];
+                const supervisorNode = approvals['supervisor'];
 
-                // 财务还未审批
-                if (financeApproval) return false;
-                // 设备管理员和负责人都已批准
-                if (!deviceApproval || deviceApproval.action !== 'approve') return false;
-                if (!supervisorApproval || supervisorApproval.action !== 'approve') return false;
+                if (!financeNode || financeNode.status !== 'pending') return false;
+                if (!deviceNode || deviceNode.status !== 'approved') return false;
+                if (!supervisorNode || supervisorNode.status !== 'approved') return false;
 
-                // 检查是否已付款（通过检查payment状态或财务审批前的状态）
-                // 这里假设如果到了财务审批步骤，说明已付款
-                return true;
+                // 检查是否已付款
+                return reservation.payment_status === 'paid';
             }
 
             return false;
@@ -335,13 +274,9 @@
             if (!confirm('确定要批准这个预约吗?')) return;
 
             try {
-                // 根据需求文档，设备管理员审批时需要传递reservation_id
-                const result = await API.post('reservation.php?action=approve', { 
-                    reservation_id: id,
-                    remark: ''
-                }, true);
+                const result = await API.post('reservation.php?action=approve', { id }, true);
                 if (result.code === 0) {
-                    UI.showToast(result.message || '审批成功');
+                    UI.showToast('审批成功');
                     loadReservations();
                 } else {
                     UI.showToast(result.message, 'error');
@@ -369,7 +304,7 @@
 
             try {
                 const result = await API.post('reservation.php?action=reject', {
-                    reservation_id: currentRejectId,
+                    id: currentRejectId,
                     reason: reason
                 }, true);
 

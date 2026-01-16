@@ -19,11 +19,12 @@
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <h1 class="page-title mb-0">学生管理</h1>
                     <div>
-                        <button class="btn btn-outline-primary me-2" onclick="openImportModal()">
-                            <i class="fas fa-file-import me-1"></i>JSON导入
+                        <button class="btn btn-outline-primary me-2" data-bs-toggle="modal"
+                            data-bs-target="#importModal">
+                            <i class="fas fa-file-import me-1"></i> 批量导入
                         </button>
-                        <button class="btn btn-primary" onclick="openAddModal()">
-                            <i class="fas fa-plus me-1"></i>添加学生
+                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addModal">
+                            <i class="fas fa-plus me-1"></i> 添加学生
                         </button>
                     </div>
                 </div>
@@ -34,8 +35,9 @@
                 </div>
 
                 <div class="card">
-                    <div class="card-header">
-                        <h5 class="mb-0">我的学生 (<span id="studentCount">0</span>人)</h5>
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">我的学生</h5>
+                        <span class="badge bg-secondary" id="studentCount">0 人</span>
                     </div>
                     <div class="card-body">
                         <div class="table-responsive">
@@ -46,14 +48,13 @@
                                         <th>姓名</th>
                                         <th>专业</th>
                                         <th>学院</th>
-                                        <th>手机号</th>
-                                        <th>状态</th>
+                                        <th>联系电话</th>
                                         <th>操作</th>
                                     </tr>
                                 </thead>
                                 <tbody id="studentList">
                                     <tr>
-                                        <td colspan="7" class="text-center py-5">
+                                        <td colspan="6" class="text-center py-5">
                                             <div class="spinner-border text-primary" role="status">
                                                 <span class="visually-hidden">加载中...</span>
                                             </div>
@@ -69,80 +70,64 @@
     </div>
 
     <!-- 添加学生模态框 -->
-    <div class="modal fade" id="addStudentModal" tabindex="-1">
+    <div class="modal fade" id="addModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">添加学生</h5>
+                    <h5 class="modal-title">添加指导学生</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <form id="studentForm">
+                    <form id="addForm">
                         <div class="mb-3">
-                            <label class="form-label">学号 <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="formStudentNo" placeholder="输入学号" required>
+                            <label class="form-label">学号</label>
+                            <input type="text" class="form-control" id="studentNo" placeholder="请输入学生学号" required>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">姓名 <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="formStudentName" placeholder="学生姓名" required>
+                            <label class="form-label">姓名</label>
+                            <input type="text" class="form-control" id="studentName" placeholder="请输入学生姓名" required>
                         </div>
                         <div class="mb-3">
                             <label class="form-label">专业</label>
-                            <input type="text" class="form-control" id="formStudentMajor" placeholder="专业">
+                            <input type="text" class="form-control" id="major" placeholder="如：软件工程">
                         </div>
                         <div class="mb-3">
                             <label class="form-label">学院</label>
-                            <input type="text" class="form-control" id="formStudentCollege" placeholder="学院">
+                            <input type="text" class="form-control" id="college" placeholder="如：计算机学院">
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">手机号</label>
-                            <input type="text" class="form-control" id="formStudentPhone" placeholder="手机号">
+                            <label class="form-label">联系电话</label>
+                            <input type="tel" class="form-control" id="phone" placeholder="可选">
                         </div>
                     </form>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                    <button type="button" class="btn btn-primary" id="saveStudentBtn">添加</button>
+                    <button type="button" class="btn btn-primary" id="saveAddBtn">确认添加</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- JSON导入模态框 -->
+    <!-- 导入模态框 -->
     <div class="modal fade" id="importModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
+        <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">JSON批量导入</h5>
+                    <h5 class="modal-title">批量导入学生</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="alert alert-info">
-                        <i class="fas fa-info-circle me-2"></i>
-                        <strong>导入说明：</strong>请按照JSON格式准备文件。必填字段：<code>student_no</code>（学号）、<code>real_name</code>（姓名）。选填字段：<code>major</code>（专业）、<code>college</code>（学院）、<code>phone</code>（手机号）。
-                    </div>
                     <div class="mb-3">
-                        <label class="form-label">选择JSON文件</label>
-                        <input type="file" class="form-control" id="jsonFile" accept=".json">
-                        <small class="form-text text-muted">仅支持 .json 格式文件</small>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">或直接粘贴JSON内容</label>
-                        <textarea class="form-control" id="jsonContent" rows="10" placeholder='{"students": [{"student_no": "S2024001", "real_name": "张三"}]}'></textarea>
-                        <small class="form-text text-muted">可以直接在文本框中粘贴JSON内容</small>
-                    </div>
-                    <div class="text-center">
-                        <button type="button" class="btn btn-outline-primary" onclick="downloadTemplate('simple')">
-                            <i class="fas fa-download me-1"></i>下载简单模板（仅必填项）
-                        </button>
-                        <button type="button" class="btn btn-outline-primary ms-2" onclick="downloadTemplate('full')">
-                            <i class="fas fa-download me-1"></i>下载完整模板（含选填项）
-                        </button>
+                        <label class="form-label">选择文件 (JSON 格式)</label>
+                        <input type="file" class="form-control" id="importFile" accept=".json">
+                        <div class="form-text">请上传包含学生信息的 JSON 文件。格式：[{"student_no": "...", "real_name": "...", "major":
+                            "...", "college": "..."}]</div>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                    <button type="button" class="btn btn-primary" id="importBtn">导入</button>
+                    <button type="button" class="btn btn-primary" id="confirmImportBtn">开始导入</button>
                 </div>
             </div>
         </div>
@@ -155,212 +140,88 @@
     <script src="../js/common.js"></script>
     <script>
         // 初始化
-        const user = Auth.getUser();
-        if (!user || user.user_type !== 'teacher') {
-            UI.showToast('仅限教师访问此页面', 'error');
-            setTimeout(() => {
-                window.location.href = 'device_list.html';
-            }, 2000);
-        } else {
-            CommonUI.init('students');
-            loadStudents();
-        }
+        CommonUI.init('students');
 
         // 加载学生列表
         async function loadStudents() {
-            try {
-                const result = await API.get('student.php');
-                const list = document.getElementById('studentList');
-
-                if (result.code === 0 && result.data.items) {
-                    renderStudents(result.data.items);
-                    document.getElementById('studentCount').textContent = result.data.total || result.data.items.length;
-                } else {
-                    list.innerHTML = `<tr><td colspan="7" class="text-center py-5 text-danger">${result.message || '加载失败'}</td></tr>`;
-                }
-            } catch (error) {
-                console.error('加载学生列表失败:', error);
-                document.getElementById('studentList').innerHTML =
-                    `<tr><td colspan="7" class="text-center py-5 text-danger">网络请求失败</td></tr>`;
-            }
-        }
-
-        function renderStudents(students) {
+            const result = await API.get('student.php');
             const list = document.getElementById('studentList');
 
-            if (students.length === 0) {
-                list.innerHTML = '<tr><td colspan="7" class="text-center py-5 text-muted">暂无学生</td></tr>';
-                return;
-            }
-
-            list.innerHTML = students.map(s => {
-                const statusBadge = s.status == 1 
-                    ? '<span class="badge bg-success">有效</span>' 
-                    : '<span class="badge bg-secondary">无效</span>';
-
-                return `
-                    <tr>
-                        <td>${s.student_no || '-'}</td>
-                        <td>${s.real_name || s.username || '-'}</td>
-                        <td>${s.major || '-'}</td>
-                        <td>${s.college || '-'}</td>
-                        <td>${s.phone || '-'}</td>
-                        <td>${statusBadge}</td>
-                        <td>
-                            <button class="btn btn-sm btn-danger" onclick="removeStudent(${s.user_id}, '${s.real_name || s.username}')">
-                                <i class="fas fa-times"></i> 移除
-                            </button>
-                        </td>
-                    </tr>
-                `;
-            }).join('');
-        }
-
-        // 打开添加学生模态框
-        function openAddModal() {
-            document.getElementById('studentForm').reset();
-            const modal = new bootstrap.Modal(document.getElementById('addStudentModal'));
-            modal.show();
-        }
-
-        // 打开导入模态框
-        function openImportModal() {
-            document.getElementById('jsonFile').value = '';
-            document.getElementById('jsonContent').value = '';
-            const modal = new bootstrap.Modal(document.getElementById('importModal'));
-            modal.show();
-        }
-
-        // 保存学生
-        document.getElementById('saveStudentBtn').addEventListener('click', async () => {
-            const studentNo = document.getElementById('formStudentNo').value.trim();
-            const realName = document.getElementById('formStudentName').value.trim();
-            const major = document.getElementById('formStudentMajor').value.trim();
-            const college = document.getElementById('formStudentCollege').value.trim();
-            const phone = document.getElementById('formStudentPhone').value.trim();
-
-            if (!studentNo || !realName) {
-                UI.showToast('学号和姓名不能为空', 'warning');
-                return;
-            }
-
-            const btn = document.getElementById('saveStudentBtn');
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 添加中...';
-
-            try {
-                const result = await API.post('student.php', {
-                    student_no: studentNo,
-                    real_name: realName,
-                    major: major,
-                    college: college,
-                    phone: phone
-                });
-
-                if (result.code === 0) {
-                    UI.showToast(result.message || '学生添加成功');
-                    const modal = bootstrap.Modal.getInstance(document.getElementById('addStudentModal'));
-                    modal.hide();
-                    loadStudents();
-                } else {
-                    UI.showToast(result.message, 'error');
-                }
-            } catch (error) {
-                console.error('添加学生失败:', error);
-                UI.showToast('网络请求失败', 'error');
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = '添加';
-            }
-        });
-
-        // 导入学生
-        document.getElementById('importBtn').addEventListener('click', async () => {
-            const fileInput = document.getElementById('jsonFile');
-            const jsonContent = document.getElementById('jsonContent').value.trim();
-            const file = fileInput.files[0];
-
-            let studentsData = null;
-
-            // 优先使用文件，如果没有文件则使用文本框内容
-            if (file) {
-                try {
-                    const fileContent = await file.text();
-                    const parsed = JSON.parse(fileContent);
-                    studentsData = parsed;
-                } catch (error) {
-                    UI.showToast('JSON文件格式错误：' + error.message, 'error');
-                    return;
-                }
-            } else if (jsonContent) {
-                try {
-                    studentsData = JSON.parse(jsonContent);
-                } catch (error) {
-                    UI.showToast('JSON格式错误：' + error.message, 'error');
-                    return;
-                }
+            if (result.code === 0) {
+                renderStudents(result.data);
             } else {
-                UI.showToast('请选择JSON文件或输入JSON内容', 'warning');
+                list.innerHTML = `<tr><td colspan="6" class="text-center py-5 text-danger">${result.message}</td></tr>`;
+            }
+        }
+
+        function renderStudents(items) {
+            const list = document.getElementById('studentList');
+            document.getElementById('studentCount').textContent = `${items.length} 人`;
+
+            if (items.length === 0) {
+                list.innerHTML = '<tr><td colspan="6" class="text-center py-5 text-muted">您目前还没有指导学生</td></tr>';
                 return;
             }
 
-            // 验证数据结构
-            if (!studentsData.students || !Array.isArray(studentsData.students)) {
-                UI.showToast('JSON格式错误：必须包含 "students" 数组', 'error');
+            list.innerHTML = items.map(item => `
+                <tr>
+                    <td>${item.student_no}</td>
+                    <td class="fw-bold">${item.real_name}</td>
+                    <td>${item.major || '-'}</td>
+                    <td>${item.college || '-'}</td>
+                    <td>${item.phone || '-'}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-danger" onclick="removeStudent(${item.user_id})">
+                            <i class="fas fa-user-minus"></i> 移除
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // 添加学生
+        document.getElementById('saveAddBtn').addEventListener('click', async () => {
+            const data = {
+                student_no: document.getElementById('studentNo').value,
+                real_name: document.getElementById('studentName').value,
+                major: document.getElementById('major').value,
+                college: document.getElementById('college').value,
+                phone: document.getElementById('phone').value
+            };
+
+            if (!data.student_no || !data.real_name) {
+                UI.showToast('学号和姓名必填', 'warning');
                 return;
             }
 
-            if (studentsData.students.length === 0) {
-                UI.showToast('学生列表不能为空', 'warning');
-                return;
-            }
-
-            const btn = document.getElementById('importBtn');
+            const btn = document.getElementById('saveAddBtn');
             btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 导入中...';
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 处理中...';
 
             try {
-                const result = await API.post('student.php?action=import', studentsData);
-
+                const result = await API.post('student.php?action=add', data);
                 if (result.code === 0) {
-                    const message = result.message || `导入完成：成功 ${result.data?.success || 0} 人，失败 ${result.data?.failed || 0} 人`;
-                    UI.showToast(message, result.data?.failed > 0 ? 'warning' : 'success');
-                    
-                    if (result.data?.errors && result.data.errors.length > 0) {
-                        console.warn('导入错误详情:', result.data.errors);
-                        // 可以显示详细错误信息
-                        const errorMsg = result.data.errors.slice(0, 5).join('；');
-                        if (result.data.errors.length > 5) {
-                            UI.showToast(errorMsg + '等', 'warning');
-                        } else {
-                            UI.showToast(errorMsg, 'warning');
-                        }
-                    }
-                    
-                    const modal = bootstrap.Modal.getInstance(document.getElementById('importModal'));
+                    UI.showToast('学生添加成功');
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('addModal'));
                     modal.hide();
                     loadStudents();
                 } else {
                     UI.showToast(result.message, 'error');
                 }
             } catch (error) {
-                console.error('导入失败:', error);
                 UI.showToast('网络请求失败', 'error');
             } finally {
                 btn.disabled = false;
-                btn.innerHTML = '导入';
+                btn.textContent = '确认添加';
             }
         });
 
         // 移除学生
-        async function removeStudent(userId, studentName) {
-            if (!confirm(`确定要移除学生"${studentName}"吗？`)) return;
+        async function removeStudent(userId) {
+            if (!confirm('确定要从指导列表中移除该学生吗？')) return;
 
             try {
-                const result = await API.post('student.php?action=remove', {
-                    user_id: userId
-                });
-
+                const result = await API.post('student.php?action=remove', { user_id: userId });
                 if (result.code === 0) {
                     UI.showToast('学生已移除');
                     loadStudents();
@@ -368,76 +229,48 @@
                     UI.showToast(result.message, 'error');
                 }
             } catch (error) {
-                console.error('移除学生失败:', error);
                 UI.showToast('网络请求失败', 'error');
             }
         }
 
-        // 下载JSON模板
-        function downloadTemplate(type = 'simple') {
-            let template;
-            
-            if (type === 'simple') {
-                // 简单模板：仅必填项
-                template = {
-                    "students": [
-                        {
-                            "student_no": "S2024001",
-                            "real_name": "张三"
-                        },
-                        {
-                            "student_no": "S2024002",
-                            "real_name": "李四"
-                        },
-                        {
-                            "student_no": "S2024003",
-                            "real_name": "王五"
-                        }
-                    ]
-                };
-            } else {
-                // 完整模板：包含所有字段
-                template = {
-                    "students": [
-                        {
-                            "student_no": "S2024001",
-                            "real_name": "张三",
-                            "major": "软件工程",
-                            "college": "计算机学院",
-                            "phone": "13800138001"
-                        },
-                        {
-                            "student_no": "S2024002",
-                            "real_name": "李四",
-                            "major": "计算机科学",
-                            "college": "计算机学院",
-                            "phone": "13800138002"
-                        },
-                        {
-                            "student_no": "S2024003",
-                            "real_name": "王五",
-                            "major": "物联网工程",
-                            "college": "物联网学院",
-                            "phone": "13800138003"
-                        }
-                    ]
-                };
+        // 批量导入
+        document.getElementById('confirmImportBtn').addEventListener('click', async () => {
+            const fileInput = document.getElementById('importFile');
+            if (fileInput.files.length === 0) {
+                UI.showToast('请选择要导入的文件', 'warning');
+                return;
             }
 
-            // 创建JSON文件并下载
-            const jsonStr = JSON.stringify(template, null, 2);
-            const blob = new Blob([jsonStr], { type: 'application/json;charset=utf-8' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `学生导入模板_${type === 'simple' ? '简单' : '完整'}.json`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-            
-            UI.showToast('模板下载成功', 'success');
-        }
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                try {
+                    const students = JSON.parse(e.target.result);
+                    const btn = document.getElementById('confirmImportBtn');
+                    btn.disabled = true;
+                    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 导入中...';
+
+                    const result = await API.post('student.php?action=import', { students });
+                    if (result.code === 0) {
+                        UI.showToast(`成功导入 ${result.data.imported_count} 名学生`);
+                        const modal = bootstrap.Modal.getInstance(document.getElementById('importModal'));
+                        modal.hide();
+                        loadStudents();
+                    } else {
+                        UI.showToast(result.message, 'error');
+                    }
+                } catch (err) {
+                    UI.showToast('文件格式错误', 'error');
+                } finally {
+                    const btn = document.getElementById('confirmImportBtn');
+                    btn.disabled = false;
+                    btn.textContent = '开始导入';
+                }
+            };
+            reader.readAsText(file);
+        });
+
+        loadStudents();
     </script>
 </body>
 

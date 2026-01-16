@@ -124,14 +124,14 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <form id="reserveForm" onsubmit="return false;">
+                    <form id="reserveForm">
                         <div class="mb-3">
-                            <label class="form-label">预约日期 <span class="text-danger">*</span></label>
+                            <label class="form-label">预约日期</label>
                             <input type="date" class="form-control" id="reserveDate" required>
                             <div class="form-text">请选择您需要使用设备的日期。</div>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">预约时段 <span class="text-danger">*</span></label>
+                            <label class="form-label">预约时段</label>
                             <select class="form-select" id="timeSlot" required>
                                 <option value="">请选择时段</option>
                                 <option value="08:00-10:00">08:00 - 10:00</option>
@@ -142,7 +142,7 @@
                             </select>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">使用目的 <span class="text-danger">*</span></label>
+                            <label class="form-label">使用目的</label>
                             <textarea class="form-control" id="purpose" rows="3" placeholder="请简述您的实验目的或使用原因..."
                                 required></textarea>
                         </div>
@@ -150,7 +150,7 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                    <button type="button" class="btn btn-primary" id="submitReserveBtn" onclick="submitReservation()">提交申请</button>
+                    <button type="button" class="btn btn-primary" id="submitReserveBtn">提交申请</button>
                 </div>
             </div>
         </div>
@@ -239,39 +239,14 @@
             }
         }
 
-        // 阻止表单默认提交
-        document.getElementById('reserveForm').addEventListener('submit', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            return false;
-        });
+        // 提交预约
+        document.getElementById('submitReserveBtn').addEventListener('click', async () => {
+            const reserveDate = document.getElementById('reserveDate').value;
+            const timeSlot = document.getElementById('timeSlot').value;
+            const purpose = document.getElementById('purpose').value;
 
-        // 提交预约函数
-        async function submitReservation() {
-            const reserveDate = document.getElementById('reserveDate').value.trim();
-            const timeSlot = document.getElementById('timeSlot').value.trim();
-            const purpose = document.getElementById('purpose').value.trim();
-
-            // 验证必填项
-            if (!reserveDate) {
-                UI.showToast('请选择预约日期', 'warning');
-                return;
-            }
-
-            if (!timeSlot) {
-                UI.showToast('请选择预约时段', 'warning');
-                return;
-            }
-
-            if (!purpose) {
-                UI.showToast('请填写使用目的', 'warning');
-                return;
-            }
-
-            // 验证日期不能早于今天
-            const today = new Date().toISOString().split('T')[0];
-            if (reserveDate < today) {
-                UI.showToast('预约日期不能早于今天', 'warning');
+            if (!reserveDate || !timeSlot || !purpose) {
+                UI.showToast('请填写完整预约信息', 'warning');
                 return;
             }
 
@@ -280,50 +255,28 @@
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 提交中...';
 
             try {
-                const requestData = {
+                const result = await API.post('reservation.php', {
                     device_id: parseInt(deviceId),
                     reserve_date: reserveDate,
                     time_slot: timeSlot,
                     purpose: purpose
-                };
-
-                console.log('提交预约请求:', requestData);
-
-                const result = await API.post('reservation.php', requestData);
-
-                console.log('预约API响应:', result);
+                });
 
                 if (result.code === 0) {
-                    UI.showToast(result.message || '预约申请已提交，请等待审核', 'success');
-                    // 重置表单
-                    document.getElementById('reserveForm').reset();
-                    document.getElementById('reserveDate').value = today;
+                    UI.showToast('预约申请已提交，请等待审核');
                     // 关闭模态框
                     const modal = bootstrap.Modal.getInstance(document.getElementById('reserveModal'));
                     modal.hide();
-                    // 延迟跳转
-                    setTimeout(() => {
-                        window.location.href = 'reservation.html';
-                    }, 1500);
+                    setTimeout(() => location.href = 'reservation.html', 1500);
                 } else {
-                    console.error('预约提交失败:', result);
-                    UI.showToast(result.message || '提交失败，请重试', 'error');
-                    btn.disabled = false;
-                    btn.innerHTML = '提交申请';
+                    UI.showToast(result.message, 'error');
                 }
             } catch (error) {
-                console.error('预约提交异常:', error);
-                UI.showToast('网络请求失败：' + (error.message || '请检查网络连接'), 'error');
+                UI.showToast('网络请求失败', 'error');
+            } finally {
                 btn.disabled = false;
-                btn.innerHTML = '提交申请';
+                btn.textContent = '提交申请';
             }
-        }
-
-        // 绑定事件监听器
-        document.getElementById('submitReserveBtn').addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            submitReservation();
         });
 
         loadDetail();

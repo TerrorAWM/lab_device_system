@@ -58,37 +58,19 @@
                 const result = await API.post('login.php', { username, password });
 
                 if (result.code === 0) {
-                    // 保存登录信息
-                    try {
-                        Auth.saveLogin(result.data);
-                    } catch (err) {
-                        console.error('保存登录信息失败:', err);
-                        UI.showToast('保存登录信息失败', 'error');
-                        loginBtn.disabled = false;
-                        loginBtn.innerHTML = '登 录';
-                        return;
-                    }
-                    
                     UI.showToast('登录成功！');
-                    
-                    // 延迟跳转，确保Toast显示
+                    Auth.saveLogin(result.data);
                     setTimeout(() => {
                         window.location.href = 'user/device_list.html';
                     }, 500);
-                    // 注意：成功时不要重置按钮，因为页面即将跳转
-                    return;
                 } else {
                     UI.showToast(result.message || '登录失败', 'error');
                 }
             } catch (error) {
-                console.error('登录错误:', error);
                 UI.showToast('网络请求失败', 'error');
             } finally {
-                // 只有在失败的情况下才重置按钮
-                if (loginBtn.disabled) {
-                    loginBtn.disabled = false;
-                    loginBtn.innerHTML = '登 录';
-                }
+                loginBtn.disabled = false;
+                loginBtn.innerHTML = '登 录';
             }
         });
     </script>
