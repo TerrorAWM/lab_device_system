@@ -188,6 +188,9 @@ function getPendingForAdmin(array $admin): void
     }
 
     $items = array_map(function($r) {
+        // 解析审批记录
+        $approvals = $r['approvals'] ? json_decode($r['approvals'], true) : [];
+        
         return [
             'id' => $r['reservation_id'],
             'user_id' => $r['user_id'],
@@ -206,6 +209,7 @@ function getPendingForAdmin(array $admin): void
             'step_description' => $r['step_description'],
             'is_parallel' => (bool)$r['is_parallel'],
             'is_payment_required' => (bool)$r['is_payment_required'],
+            'approvals' => $approvals, // 包含审批记录
             'created_at' => $r['created_at']
         ];
     }, $filteredReservations);

@@ -212,7 +212,7 @@
     </div>
 
     <script>
-        const API_BASE = '/admin/api';
+        const API_BASE = '/lab_device_system/admin/api';
         let token = localStorage.getItem('admin_token') || '';
         
         // 更新 Token 状态

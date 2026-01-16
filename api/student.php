@@ -97,17 +97,41 @@ function addStudent(array $user): void
         respError('学号不能为空');
     }
 
-    if (empty($realName)) {
-        respError('姓名不能为空');
-    }
-
     $pdo = getDB();
 
-    // 检查学号是否已存在
-    $stmt = $pdo->prepare('SELECT user_id FROM t_user_student WHERE student_no = ?');
+    // 学号已存在：允许重新绑定（advisor_id 为 NULL 时），避免“删了就加不回去”
+    $stmt = $pdo->prepare('SELECT user_id, advisor_id FROM t_user_student WHERE student_no = ?');
     $stmt->execute([$studentNo]);
-    if ($stmt->fetch()) {
-        respError('该学号已被注册');
+    $existing = $stmt->fetch();
+    if ($existing) {
+        // 已绑定其他导师：不允许抢绑
+        if (!empty($existing['advisor_id']) && (int)$existing['advisor_id'] !== (int)$user['user_id']) {
+            respError('该学生已绑定其他导师');
+        }
+
+        // 已在本人名下：直接提示成功（幂等）
+        if (!empty($existing['advisor_id']) && (int)$existing['advisor_id'] === (int)$user['user_id']) {
+            respOK([
+                'user_id' => (int)$existing['user_id'],
+                'student_no' => $studentNo,
+                'action' => 'already_bound'
+            ], '该学生已在您的名下');
+        }
+
+        // 未绑定导师：执行重新绑定
+        $stmt = $pdo->prepare('UPDATE t_user_student SET advisor_id = ? WHERE user_id = ?');
+        $stmt->execute([(int)$user['user_id'], (int)$existing['user_id']]);
+
+        respOK([
+            'user_id' => (int)$existing['user_id'],
+            'student_no' => $studentNo,
+            'action' => 'bound'
+        ], '学生已重新绑定到您的名下');
+    }
+
+    // 学号不存在：创建新学生，才要求姓名
+    if (empty($realName)) {
+        respError('姓名不能为空');
     }
 
     try {

@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>预约审批 - 实验室设备管理系统</title>
+    <link href="../css/bootstrap.min.css" rel="stylesheet">
+    <link href="../css/fontawesome/css/all.min.css" rel="stylesheet">
+    <link href="../css/style.css" rel="stylesheet">
+    <style>
+        .approval-chain {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .approval-node {
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .approval-node.pending {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+
+        .approval-node.approved {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .approval-node.rejected {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .approval-node.waiting {
+            background: #e2e3e5;
+            color: #6c757d;
+            border: 1px solid #d6d8db;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="main-wrapper">
+        <aside class="sidebar"></aside>
+        <div class="main-content">
+            <header class="top-nav"></header>
+            <div class="container-fluid">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h1 class="page-title mb-0">预约审批</h1>
+                </div>
+
+                <div class="card">
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>申请人</th>
+                                        <th>身份</th>
+                                        <th>设备</th>
+                                        <th>日期/时段</th>
+                                        <th>用途</th>
+                                        <th>审批进度</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="reservationList">
+                                    <tr>
+                                        <td colspan="8" class="text-center py-5">
+                                            <div class="spinner-border text-primary" role="status">
+                                                <span class="visually-hidden">加载中...</span>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 批准模态框 -->
+    <div class="modal fade" id="approveModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">批准预约</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="approveId">
+                    <div class="mb-3">
+                        <label class="form-label">审批备注（可选）</label>
+                        <textarea class="form-control" id="approveRemark" rows="3" placeholder="请输入审批备注..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-success" id="confirmApproveBtn">确认批准</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 驳回模态框 -->
+    <div class="modal fade" id="rejectModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">驳回预约</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="rejectId">
+                    <div class="mb-3">
+                        <label class="form-label">驳回原因</label>
+                        <textarea class="form-control" id="rejectReason" rows="3" placeholder="请填写驳回原因..."
+                            required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-danger" id="confirmRejectBtn">确认驳回</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/bootstrap.bundle.min.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/api.js"></script>
+    <script src="../js/ui.js"></script>
+    <script src="../js/common.js"></script>
+    <script>
+        // 初始化 - 检查是否为device用户
+        const user = Auth.getUser();
+        if (!user || user.user_type !== 'device') {
+            UI.showToast('只有设备管理员可以访问此页面', 'error');
+            setTimeout(() => {
+                window.location.href = 'device_list.html';
+            }, 2000);
+            throw new Error('Unauthorized');
+        }
+
+        CommonUI.init('reservation_approval');
+
+        let currentRejectId = null;
+        let currentApproveId = null;
+
+        const userTypeLabels = {
+            'teacher': '教师',
+            'student': '学生',
+            'external': '校外人员'
+        };
+
+        const roleLabels = {
+            'advisor': '导师',
+            'device': '设备管理员',
+            'supervisor': '实验室负责人',
+            'finance': '财务'
+        };
+
+        // 加载待审批列表
+        async function loadReservations() {
+            try {
+                const result = await API.get('reservation.php?action=pending');
+                const list = document.getElementById('reservationList');
+
+                if (result.code === 0 && result.data.items) {
+                    renderReservations(result.data.items);
+                } else {
+                    list.innerHTML = `<tr><td colspan="8" class="text-center py-5 text-danger">${result.message || '加载失败'}</td></tr>`;
+                }
+            } catch (error) {
+                console.error('加载预约列表失败:', error);
+                document.getElementById('reservationList').innerHTML =
+                    `<tr><td colspan="8" class="text-center py-5 text-danger">网络请求失败</td></tr>`;
+            }
+        }
+
+        function renderReservations(items) {
+            const list = document.getElementById('reservationList');
+
+            if (items.length === 0) {
+                list.innerHTML = '<tr><td colspan="8" class="text-center py-5 text-muted">暂无待审批的预约</td></tr>';
+                return;
+            }
+
+            list.innerHTML = items.map(r => {
+                const userTypeLabel = userTypeLabels[r.user_type] || r.user_type;
+
+                // 生成审批进度显示
+                let approvalStatus = '';
+                if (r.user_type === 'student') {
+                    // 学生需要导师先批准，然后设备管理员审批
+                    approvalStatus = '<span class="approval-node approved">导师: 已批</span><span class="approval-node pending">设备管理员: 待审</span>';
+                } else if (r.user_type === 'teacher') {
+                    // 教师直接由设备管理员审批
+                    approvalStatus = '<span class="approval-node pending">设备管理员: 待审</span>';
+                } else if (r.user_type === 'external') {
+                    // 校外人员需要设备管理员审批（可能还有后续步骤）
+                    approvalStatus = '<span class="approval-node pending">设备管理员: 待审</span>';
+                }
+
+                return `
+                    <tr>
+                        <td>${r.id}</td>
+                        <td>${r.user_name || '-'}</td>
+                        <td><span class="badge bg-info">${userTypeLabel}</span></td>
+                        <td>${r.device_name || '-'}<br><small class="text-muted">${r.model || ''}</small></td>
+                        <td>${r.reserve_date || '-'}<br><small class="text-muted">${r.time_slot || ''}</small></td>
+                        <td><small>${r.purpose || '-'}</small></td>
+                        <td><div class="approval-chain">${approvalStatus}</div></td>
+                        <td>
+                            <button class="btn btn-sm btn-success me-1" onclick="openApproveModal(${r.id})">
+                                <i class="fas fa-check"></i> 批准
+                            </button>
+                            <button class="btn btn-sm btn-danger" onclick="openRejectModal(${r.id})">
+                                <i class="fas fa-times"></i> 驳回
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function openApproveModal(id) {
+            currentApproveId = id;
+            document.getElementById('approveRemark').value = '';
+            const modal = new bootstrap.Modal(document.getElementById('approveModal'));
+            modal.show();
+        }
+
+        function openRejectModal(id) {
+            currentRejectId = id;
+            document.getElementById('rejectReason').value = '';
+            const modal = new bootstrap.Modal(document.getElementById('rejectModal'));
+            modal.show();
+        }
+
+        // 批准预约
+        document.getElementById('confirmApproveBtn').addEventListener('click', async () => {
+            const remark = document.getElementById('approveRemark').value.trim();
+
+            try {
+                const result = await API.post('reservation.php?action=approve', {
+                    reservation_id: currentApproveId,
+                    remark: remark
+                });
+
+                if (result.code === 0) {
+                    UI.showToast(result.message || '审批成功');
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('approveModal'));
+                    modal.hide();
+                    loadReservations();
+                } else {
+                    UI.showToast(result.message, 'error');
+                }
+            } catch (error) {
+                console.error('审批失败:', error);
+                UI.showToast('网络请求失败', 'error');
+            }
+        });
+
+        // 驳回预约
+        document.getElementById('confirmRejectBtn').addEventListener('click', async () => {
+            const reason = document.getElementById('rejectReason').value.trim();
+
+            if (!reason) {
+                UI.showToast('请填写驳回原因', 'warning');
+                return;
+            }
+
+            try {
+                const result = await API.post('reservation.php?action=reject', {
+                    reservation_id: currentRejectId,
+                    reason: reason
+                });
+
+                if (result.code === 0) {
+                    UI.showToast('已驳回');
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('rejectModal'));
+                    modal.hide();
+                    loadReservations();
+                } else {
+                    UI.showToast(result.message, 'error');
+                }
+            } catch (error) {
+                console.error('驳回失败:', error);
+                UI.showToast('网络请求失败', 'error');
+            }
+        });
+
+        // 初始加载
+        loadReservations();
+    </script>
+</body>
+
+</html>
