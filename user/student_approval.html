@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>申请审批 - 实验室设备管理系统</title>
+    <link href="../css/bootstrap.min.css" rel="stylesheet">
+    <link href="../css/fontawesome/css/all.min.css" rel="stylesheet">
+    <link href="../css/style.css" rel="stylesheet">
+</head>
+
+<body>
+    <div class="main-wrapper">
+        <aside class="sidebar"></aside>
+        <div class="main-content">
+            <header class="top-nav"></header>
+            <div class="container-fluid">
+                <h1 class="page-title">学生预约申请审批</h1>
+                <p class="text-muted mb-4">审批您指导学生的设备预约申请</p>
+
+                <div class="row mb-4">
+                    <div class="col-md-4">
+                        <div class="card bg-primary text-white text-center p-3 mb-3">
+                            <div class="h3 mb-0" id="statPending">0</div>
+                            <div class="small">待审批</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-success text-white text-center p-3 mb-3">
+                            <div class="h3 mb-0" id="statApproved">0</div>
+                            <div class="small">已批准</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-danger text-white text-center p-3 mb-3">
+                            <div class="h3 mb-0" id="statRejected">0</div>
+                            <div class="small">已驳回</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header bg-white">
+                        <h5 class="card-title mb-0">待处理申请</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>学生姓名</th>
+                                        <th>学号</th>
+                                        <th>申请设备</th>
+                                        <th>预约日期</th>
+                                        <th>时段</th>
+                                        <th>申请原因</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="applicationList">
+                                    <tr>
+                                        <td colspan="7" class="text-center py-5">
+                                            <div class="spinner-border text-primary" role="status">
+                                                <span class="visually-hidden">加载中...</span>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 驳回模态框 -->
+    <div class="modal fade" id="rejectModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">驳回申请</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="rejectId">
+                    <div class="mb-3">
+                        <label class="form-label">驳回原因</label>
+                        <textarea class="form-control" id="rejectReason" rows="3" placeholder="请填写驳回原因..."
+                            required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-danger" id="confirmRejectBtn">确认驳回</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/bootstrap.bundle.min.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/api.js"></script>
+    <script src="../js/ui.js"></script>
+    <script src="../js/common.js"></script>
+    <script>
+        // 初始化
+        CommonUI.init('student_approval');
+
+        // 加载申请列表
+        async function loadApplications() {
+            const result = await API.get('reservation.php?action=teacher_list');
+            const list = document.getElementById('applicationList');
+
+            if (result.code === 0) {
+                renderApplications(result.data);
+            } else {
+                list.innerHTML = `<tr><td colspan="7" class="text-center py-5 text-danger">${result.message}</td></tr>`;
+            }
+        }
+
+        function renderApplications(data) {
+            const list = document.getElementById('applicationList');
+            const items = data.items || [];
+
+            document.getElementById('statPending').textContent = data.stats.pending || 0;
+            document.getElementById('statApproved').textContent = data.stats.approved || 0;
+            document.getElementById('statRejected').textContent = data.stats.rejected || 0;
+
+            if (items.length === 0) {
+                list.innerHTML = '<tr><td colspan="7" class="text-center py-5 text-muted">暂无待处理申请</td></tr>';
+                return;
+            }
+
+            list.innerHTML = items.map(item => `
+                <tr>
+                    <td>${item.student_name}</td>
+                    <td>${item.student_no}</td>
+                    <td class="fw-bold">${item.device_name}</td>
+                    <td>${item.reserve_date}</td>
+                    <td>${item.time_slot}</td>
+                    <td class="text-truncate" style="max-width: 150px;" title="${item.purpose}">${item.purpose}</td>
+                    <td>
+                        <button class="btn btn-sm btn-success me-1" onclick="approveApp(${item.id})">
+                            <i class="fas fa-check"></i> 批准
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="openRejectModal(${item.id})">
+                            <i class="fas fa-times"></i> 驳回
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // 批准申请
+        async function approveApp(id) {
+            if (!confirm('确定要批准该申请吗？')) return;
+
+            try {
+                const result = await API.post('reservation.php?action=teacher_approve', {
+                    id: id,
+                    status: 'approved'
+                });
+
+                if (result.code === 0) {
+                    UI.showToast('已批准申请');
+                    loadApplications();
+                } else {
+                    UI.showToast(result.message, 'error');
+                }
+            } catch (error) {
+                UI.showToast('网络请求失败', 'error');
+            }
+        }
+
+        // 打开驳回模态框
+        function openRejectModal(id) {
+            document.getElementById('rejectId').value = id;
+            document.getElementById('rejectReason').value = '';
+            const modal = new bootstrap.Modal(document.getElementById('rejectModal'));
+            modal.show();
+        }
+
+        // 确认驳回
+        document.getElementById('confirmRejectBtn').addEventListener('click', async () => {
+            const id = document.getElementById('rejectId').value;
+            const reason = document.getElementById('rejectReason').value;
+
+            if (!reason) {
+                UI.showToast('请填写驳回原因', 'warning');
+                return;
+            }
+
+            const btn = document.getElementById('confirmRejectBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 处理中...';
+
+            try {
+                const result = await API.post('reservation.php?action=teacher_approve', {
+                    id: parseInt(id),
+                    status: 'rejected',
+                    reject_reason: reason
+                });
+
+                if (result.code === 0) {
+                    UI.showToast('已驳回申请');
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('rejectModal'));
+                    modal.hide();
+                    loadApplications();
+                } else {
+                    UI.showToast(result.message, 'error');
+                }
+            } catch (error) {
+                UI.showToast('网络请求失败', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '确认驳回';
+            }
+        });
+
+        loadApplications();
+    </script>
+</body>
+
+</html>

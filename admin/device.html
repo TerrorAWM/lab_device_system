@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>设备管理 - 管理后台</title>
+    <link href="../css/bootstrap.min.css" rel="stylesheet">
+    <link href="../css/fontawesome/css/all.min.css" rel="stylesheet">
+    <link href="../css/style.css" rel="stylesheet">
+</head>
+
+<body>
+    <div class="main-wrapper">
+        <aside class="sidebar"></aside>
+        <div class="main-content">
+            <header class="top-nav"></header>
+            <div class="container-fluid">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h1 class="page-title mb-0">设备管理</h1>
+                    <button class="btn btn-primary" id="addDeviceBtn">
+                        <i class="fas fa-plus me-1"></i> 添加设备
+                    </button>
+                </div>
+
+                <div class="card">
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>设备名称</th>
+                                        <th>型号</th>
+                                        <th>分类</th>
+                                        <th>位置</th>
+                                        <th>日租金</th>
+                                        <th>状态</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="deviceList">
+                                    <tr>
+                                        <td colspan="7" class="text-center py-5">
+                                            <div class="spinner-border text-primary" role="status">
+                                                <span class="visually-hidden">加载中...</span>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 设备编辑模态框 -->
+    <div class="modal fade" id="deviceModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalTitle">添加设备</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="deviceForm">
+                        <input type="hidden" id="deviceId">
+                        <div class="mb-3">
+                            <label class="form-label">设备名称</label>
+                            <input type="text" class="form-control" id="deviceName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">型号</label>
+                            <input type="text" class="form-control" id="deviceModel" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">分类</label>
+                            <select class="form-select" id="deviceCategory" required>
+                                <option value="测量仪器">测量仪器</option>
+                                <option value="信号源">信号源</option>
+                                <option value="电源设备">电源设备</option>
+                                <option value="分析仪器">分析仪器</option>
+                                <option value="其他">其他</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">存放位置</label>
+                            <input type="text" class="form-control" id="deviceLocation" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">日租金 (元)</label>
+                            <input type="number" class="form-control" id="devicePrice" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">设备状态</label>
+                            <select class="form-select" id="deviceStatus">
+                                <option value="available">可用</option>
+                                <option value="borrowed">已借出</option>
+                                <option value="maintenance">维修中</option>
+                                <option value="scrapped">已报废</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" id="saveDeviceBtn">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/bootstrap.bundle.min.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/api.js"></script>
+    <script src="../js/ui.js"></script>
+    <script src="../js/common.js"></script>
+    <script>
+        // 初始化
+        CommonUI.init('device', true);
+
+        // 加载设备列表
+        async function loadDevices() {
+            const result = await API.get('device.php', {}, true);
+            const list = document.getElementById('deviceList');
+
+            if (result.code === 0) {
+                renderDevices(result.data.items);
+            } else {
+                list.innerHTML = `<tr><td colspan="7" class="text-center py-5 text-danger">${result.message}</td></tr>`;
+            }
+        }
+
+        function renderDevices(items) {
+            const list = document.getElementById('deviceList');
+            if (items.length === 0) {
+                list.innerHTML = '<tr><td colspan="7" class="text-center py-5 text-muted">暂无设备数据</td></tr>';
+                return;
+            }
+
+            list.innerHTML = items.map(item => {
+                const statusClass = {
+                    'available': 'badge-success',
+                    'borrowed': 'badge-warning',
+                    'maintenance': 'badge-danger',
+                    'scrapped': 'badge-secondary'
+                }[item.status] || 'badge-info';
+
+                const statusText = {
+                    'available': '可用',
+                    'borrowed': '已借出',
+                    'maintenance': '维修中',
+                    'scrapped': '已报废'
+                }[item.status] || item.status;
+
+                return `
+                    <tr>
+                        <td class="fw-bold">${item.name}</td>
+                        <td>${item.model}</td>
+                        <td>${item.category}</td>
+                        <td>${item.location || '-'}</td>
+                        <td>¥${item.rent_price}</td>
+                        <td><span class="badge ${statusClass}">${statusText}</span></td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary me-1" onclick="openEditModal(${JSON.stringify(item).replace(/"/g, '&quot;')})">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteDevice(${item.id})">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // 打开添加模态框
+        document.getElementById('addDeviceBtn').addEventListener('click', () => {
+            document.getElementById('modalTitle').textContent = '添加设备';
+            document.getElementById('deviceForm').reset();
+            document.getElementById('deviceId').value = '';
+            const modal = new bootstrap.Modal(document.getElementById('deviceModal'));
+            modal.show();
+        });
+
+        // 打开编辑模态框
+        function openEditModal(item) {
+            document.getElementById('modalTitle').textContent = '编辑设备';
+            document.getElementById('deviceId').value = item.id;
+            document.getElementById('deviceName').value = item.name;
+            document.getElementById('deviceModel').value = item.model;
+            document.getElementById('deviceCategory').value = item.category;
+            document.getElementById('deviceLocation').value = item.location || '';
+            document.getElementById('devicePrice').value = item.rent_price;
+            document.getElementById('deviceStatus').value = item.status;
+
+            const modal = new bootstrap.Modal(document.getElementById('deviceModal'));
+            modal.show();
+        }
+
+        // 保存设备
+        document.getElementById('saveDeviceBtn').addEventListener('click', async () => {
+            const id = document.getElementById('deviceId').value;
+            const data = {
+                name: document.getElementById('deviceName').value,
+                model: document.getElementById('deviceModel').value,
+                category: document.getElementById('deviceCategory').value,
+                location: document.getElementById('deviceLocation').value,
+                rent_price: parseFloat(document.getElementById('devicePrice').value),
+                status: document.getElementById('deviceStatus').value
+            };
+
+            if (!data.name || !data.model || isNaN(data.rent_price)) {
+                UI.showToast('请填写完整信息', 'warning');
+                return;
+            }
+
+            const btn = document.getElementById('saveDeviceBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 保存中...';
+
+            try {
+                let result;
+                if (id) {
+                    result = await API.post('device.php?action=update', { ...data, device_id: parseInt(id), device_name: data.name }, true);
+                } else {
+                    result = await API.post('device.php?action=create', { ...data, device_name: data.name }, true);
+                }
+
+                if (result.code === 0) {
+                    UI.showToast('保存成功');
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('deviceModal'));
+                    modal.hide();
+                    loadDevices();
+                } else {
+                    UI.showToast(result.message, 'error');
+                }
+            } catch (error) {
+                UI.showToast('网络请求失败', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '保存';
+            }
+        });
+
+        // 删除设备
+        async function deleteDevice(id) {
+            if (!confirm('确定要删除该设备吗？此操作不可恢复。')) return;
+
+            try {
+                const result = await API.post('device.php?action=delete', { device_id: id }, true);
+                if (result.code === 0) {
+                    UI.showToast('删除成功');
+                    loadDevices();
+                } else {
+                    UI.showToast(result.message, 'error');
+                }
+            } catch (error) {
+                UI.showToast('网络请求失败', 'error');
+            }
+        }
+
+        loadDevices();
+    </script>
+</body>
+
+</html>

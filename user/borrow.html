@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>借用记录 - 实验室设备管理系统</title>
+    <link href="../css/bootstrap.min.css" rel="stylesheet">
+    <link href="../css/fontawesome/css/all.min.css" rel="stylesheet">
+    <link href="../css/style.css" rel="stylesheet">
+</head>
+
+<body>
+    <div class="main-wrapper">
+        <aside class="sidebar"></aside>
+        <div class="main-content">
+            <header class="top-nav"></header>
+            <div class="container-fluid">
+                <h1 class="page-title">借用记录</h1>
+
+                <div class="card">
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>设备名称</th>
+                                        <th>借用日期</th>
+                                        <th>时段</th>
+                                        <th>实际归还时间</th>
+                                        <th>状态</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="borrowList">
+                                    <tr>
+                                        <td colspan="6" class="text-center py-5">
+                                            <div class="spinner-border text-primary" role="status">
+                                                <span class="visually-hidden">加载中...</span>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/bootstrap.bundle.min.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/api.js"></script>
+    <script src="../js/ui.js"></script>
+    <script src="../js/common.js"></script>
+    <script>
+        // 初始化
+        CommonUI.init('borrow');
+
+        // 加载借用列表
+        async function loadBorrows() {
+            const result = await API.get('borrow.php');
+            const list = document.getElementById('borrowList');
+
+            if (result.code === 0) {
+                renderBorrows(result.data.items);
+            } else {
+                list.innerHTML = `<tr><td colspan="6" class="text-center py-5 text-danger">${result.message}</td></tr>`;
+            }
+        }
+
+        function renderBorrows(items) {
+            const list = document.getElementById('borrowList');
+            if (!items || items.length === 0) {
+                list.innerHTML = '<tr><td colspan="6" class="text-center py-5 text-muted">暂无借用记录</td></tr>';
+                return;
+            }
+
+            list.innerHTML = items.map(item => {
+                const statusClass = {
+                    'borrowing': 'badge-warning',
+                    'returned': 'badge-success',
+                    'overdue': 'badge-danger'
+                }[item.status] || 'badge-info';
+
+                const statusText = {
+                    'borrowing': '借用中',
+                    'returned': '已归还',
+                    'overdue': '已逾期'
+                }[item.status] || item.status;
+
+                let actions = '-';
+                if (item.status === 'borrowing' || item.status === 'overdue') {
+                    actions = `
+                        <button class="btn btn-sm btn-success" onclick="returnDevice(${item.id})">
+                            <i class="fas fa-undo me-1"></i> 归还
+                        </button>
+                    `;
+                }
+
+                return `
+                    <tr>
+                        <td class="fw-bold">${item.device_name}</td>
+                        <td>${item.borrow_date}</td>
+                        <td>${item.time_slot}</td>
+                        <td>${item.actual_return || '-'}</td>
+                        <td><span class="badge ${statusClass}">${statusText}</span></td>
+                        <td>${actions}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // 归还设备
+        async function returnDevice(id) {
+            if (!confirm('确定要归还该设备吗？')) return;
+
+            try {
+                const result = await API.post('return.php', { borrow_id: id });
+                if (result.code === 0) {
+                    UI.showToast('设备归还成功');
+                    loadBorrows();
+                } else {
+                    UI.showToast(result.message, 'error');
+                }
+            } catch (error) {
+                UI.showToast('网络请求失败', 'error');
+            }
+        }
+
+        loadBorrows();
+    </script>
+</body>
+
+</html>

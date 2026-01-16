@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>用户管理 - 管理后台</title>
+    <link href="../css/bootstrap.min.css" rel="stylesheet">
+    <link href="../css/fontawesome/css/all.min.css" rel="stylesheet">
+    <link href="../css/style.css" rel="stylesheet">
+</head>
+
+<body>
+    <div class="main-wrapper">
+        <aside class="sidebar"></aside>
+        <div class="main-content">
+            <header class="top-nav"></header>
+            <div class="container-fluid">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h1 class="page-title mb-0">用户管理</h1>
+                    <button class="btn btn-primary" id="addUserBtn">
+                        <i class="fas fa-user-plus me-1"></i> 添加用户
+                    </button>
+                </div>
+
+                <!-- 角色筛选 -->
+                <ul class="nav nav-tabs mb-4" id="userTabs">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#" data-type="all">全部用户</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" data-type="teacher">教师</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" data-type="student">学生</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" data-type="external">校外人员</a>
+                    </li>
+                </ul>
+
+                <div class="card">
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>用户名</th>
+                                        <th>真实姓名</th>
+                                        <th>类型</th>
+                                        <th>联系电话</th>
+                                        <th>状态</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="userList">
+                                    <tr>
+                                        <td colspan="7" class="text-center py-5">
+                                            <div class="spinner-border text-primary" role="status">
+                                                <span class="visually-hidden">加载中...</span>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 用户编辑模态框 -->
+    <div class="modal fade" id="userModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalTitle">添加用户</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="userForm">
+                        <input type="hidden" id="userId">
+                        <div class="mb-3">
+                            <label class="form-label">用户类型</label>
+                            <select class="form-select" id="formUserType" required>
+                                <option value="teacher">教师</option>
+                                <option value="student">学生</option>
+                                <option value="external">校外人员</option>
+                            </select>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">用户名</label>
+                                <input type="text" class="form-control" id="formUsername" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">真实姓名</label>
+                                <input type="text" class="form-control" id="formRealName" required>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">联系电话</label>
+                            <input type="tel" class="form-control" id="formPhone">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">状态</label>
+                            <select class="form-select" id="formStatus">
+                                <option value="1">正常</option>
+                                <option value="0">禁用</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" id="saveUserBtn">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/bootstrap.bundle.min.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/api.js"></script>
+    <script src="../js/ui.js"></script>
+    <script src="../js/common.js"></script>
+    <script>
+        // 初始化
+        CommonUI.init('user', true);
+
+        let currentType = 'all';
+
+        // 加载用户列表
+        async function loadUsers() {
+            const result = await API.get(`user.php?type=${currentType}`, {}, true);
+            const list = document.getElementById('userList');
+
+            if (result.code === 0) {
+                renderUsers(result.data.items);
+            } else {
+                list.innerHTML = `<tr><td colspan="7" class="text-center py-5 text-danger">${result.message}</td></tr>`;
+            }
+        }
+
+        function renderUsers(items) {
+            const list = document.getElementById('userList');
+            if (items.length === 0) {
+                list.innerHTML = '<tr><td colspan="7" class="text-center py-5 text-muted">暂无用户数据</td></tr>';
+                return;
+            }
+
+            const typeLabels = {
+                'teacher': '教师',
+                'student': '学生',
+                'external': '校外人员'
+            };
+
+            list.innerHTML = items.map(u => `
+                <tr>
+                    <td>${u.id}</td>
+                    <td class="fw-bold">${u.username}</td>
+                    <td>${u.real_name || '-'}</td>
+                    <td><span class="badge bg-info">${typeLabels[u.user_type] || u.user_type}</span></td>
+                    <td>${u.phone || '-'}</td>
+                    <td>
+                        <span class="badge ${u.status_code == 1 ? 'bg-success' : 'bg-danger'}">
+                            ${u.status_code == 1 ? '正常' : '禁用'}
+                        </span>
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary me-1" onclick="openEditModal(${JSON.stringify(u).replace(/"/g, '&quot;')})">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-sm ${u.status_code == 1 ? 'btn-outline-danger' : 'btn-outline-success'}" onclick="toggleUserStatus(${u.id}, ${u.status_code})">
+                            <i class="fas ${u.status_code == 1 ? 'fa-user-slash' : 'fa-user-check'}"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // Tab 切换
+        document.querySelectorAll('#userTabs .nav-link').forEach(tab => {
+            tab.addEventListener('click', function (e) {
+                e.preventDefault();
+                document.querySelectorAll('#userTabs .nav-link').forEach(t => t.classList.remove('active'));
+                this.classList.add('active');
+                currentType = this.dataset.type;
+                loadUsers();
+            });
+        });
+
+        // 打开添加模态框
+        document.getElementById('addUserBtn').addEventListener('click', () => {
+            document.getElementById('modalTitle').textContent = '添加用户';
+            document.getElementById('userForm').reset();
+            document.getElementById('userId').value = '';
+            const modal = new bootstrap.Modal(document.getElementById('userModal'));
+            modal.show();
+        });
+
+        // 打开编辑模态框
+        function openEditModal(user) {
+            document.getElementById('modalTitle').textContent = '编辑用户';
+            document.getElementById('userId').value = user.id;
+            document.getElementById('formUserType').value = user.user_type;
+            document.getElementById('formUsername').value = user.username;
+            document.getElementById('formRealName').value = user.real_name || '';
+            document.getElementById('formPhone').value = user.phone || '';
+            document.getElementById('formStatus').value = user.status_code;
+
+            const modal = new bootstrap.Modal(document.getElementById('userModal'));
+            modal.show();
+        }
+
+        // 保存用户
+        document.getElementById('saveUserBtn').addEventListener('click', async () => {
+            const id = document.getElementById('userId').value;
+            const data = {
+                user_type: document.getElementById('formUserType').value,
+                username: document.getElementById('formUsername').value,
+                real_name: document.getElementById('formRealName').value,
+                phone: document.getElementById('formPhone').value,
+                status: parseInt(document.getElementById('formStatus').value)
+            };
+
+            if (!data.username || !data.real_name) {
+                UI.showToast('用户名和真实姓名必填', 'warning');
+                return;
+            }
+
+            const btn = document.getElementById('saveUserBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 保存中...';
+
+            try {
+                let result;
+                if (id) {
+                    result = await API.post('user.php?action=update', { ...data, id: parseInt(id) }, true);
+                } else {
+                    result = await API.post('user.php?action=add', data, true);
+                }
+
+                if (result.code === 0) {
+                    UI.showToast('保存成功');
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('userModal'));
+                    modal.hide();
+                    loadUsers();
+                } else {
+                    UI.showToast(result.message, 'error');
+                }
+            } catch (error) {
+                UI.showToast('网络请求失败', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '保存';
+            }
+        });
+
+        // 切换用户状态
+        async function toggleUserStatus(id, currentStatus) {
+            const newStatus = currentStatus == 1 ? 0 : 1;
+            const actionText = newStatus == 1 ? '启用' : '禁用';
+
+            if (!confirm(`确定要${actionText}该用户吗？`)) return;
+
+            try {
+                const result = await API.post('user.php?action=toggle_status', { id, status: newStatus }, true);
+                if (result.code === 0) {
+                    UI.showToast(`用户已${actionText}`);
+                    loadUsers();
+                } else {
+                    UI.showToast(result.message, 'error');
+                }
+            } catch (error) {
+                UI.showToast('网络请求失败', 'error');
+            }
+        }
+
+        loadUsers();
+    </script>
+</body>
+
+</html>

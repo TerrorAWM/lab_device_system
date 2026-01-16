@@ -79,6 +79,17 @@ function getDashboard(): void
     $stmt->execute([$today]);
     $todayRevenue = (float)$stmt->fetchColumn();
 
+    // 最近借用记录
+    $stmt = $pdo->query('
+        SELECT b.*, u.real_name, u.username, d.device_name
+        FROM t_borrow_record b
+        JOIN t_user u ON b.user_id = u.user_id
+        JOIN t_device d ON b.device_id = d.device_id
+        ORDER BY b.borrow_date DESC
+        LIMIT 5
+    ');
+    $recentBorrows = $stmt->fetchAll();
+
     respOK([
         'summary' => [
             'total_devices' => $totalDevices,
@@ -93,7 +104,17 @@ function getDashboard(): void
             'new_reservations' => $todayReservations,
             'completed_returns' => $todayReturns,
             'revenue' => $todayRevenue
-        ]
+        ],
+        'recent_borrows' => array_map(function($b) {
+            return [
+                'id' => $b['record_id'],
+                'real_name' => $b['real_name'],
+                'username' => $b['username'],
+                'device_name' => $b['device_name'],
+                'borrow_date' => $b['borrow_date'],
+                'status' => $b['status'] == 1 ? 'borrowing' : ($b['status'] == 2 ? 'returned' : 'overdue')
+            ];
+        }, $recentBorrows)
     ]);
 }
 
