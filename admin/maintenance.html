@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>设备检修 - 管理后台</title>
+    <link href="../css/bootstrap.min.css" rel="stylesheet">
+    <link href="../css/fontawesome/css/all.min.css" rel="stylesheet">
+    <link href="../css/style.css" rel="stylesheet">
+</head>
+
+<body>
+    <div class="main-wrapper">
+        <aside class="sidebar"></aside>
+        <div class="main-content">
+            <header class="top-nav"></header>
+            <div class="container-fluid">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h1 class="page-title mb-0">设备检修管理</h1>
+                    <button class="btn btn-primary" id="addPlanBtn">
+                        <i class="fas fa-plus me-1"></i> 添加检修计划
+                    </button>
+                </div>
+
+                <div class="row mb-4">
+                    <div class="col-md-4">
+                        <div class="card bg-warning text-white text-center p-3 mb-3">
+                            <div class="h3 mb-0" id="statMaintenance">0</div>
+                            <div class="small">检修中设备</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-primary text-white text-center p-3 mb-3">
+                            <div class="h3 mb-0" id="statScheduled">0</div>
+                            <div class="small">计划检修</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-success text-white text-center p-3 mb-3">
+                            <div class="h3 mb-0" id="statCompleted">0</div>
+                            <div class="small">本月完成</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header bg-white">
+                        <h5 class="card-title mb-0">检修记录</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>设备名称</th>
+                                        <th>开始时间</th>
+                                        <th>结束时间</th>
+                                        <th>检修原因</th>
+                                        <th>状态</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="maintenanceList">
+                                    <tr>
+                                        <td colspan="6" class="text-center py-5">
+                                            <div class="spinner-border text-primary" role="status">
+                                                <span class="visually-hidden">加载中...</span>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 检修计划模态框 -->
+    <div class="modal fade" id="maintenanceModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">添加检修计划</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="maintenanceForm">
+                        <div class="mb-3">
+                            <label class="form-label">选择设备</label>
+                            <select class="form-select" id="formDevice" required></select>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">开始时间</label>
+                                <input type="datetime-local" class="form-control" id="formStartTime" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">结束时间</label>
+                                <input type="datetime-local" class="form-control" id="formEndTime" required>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">检修原因</label>
+                            <textarea class="form-control" id="formReason" rows="3" placeholder="请描述检修原因..."
+                                required></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" id="savePlanBtn">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/bootstrap.bundle.min.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/api.js"></script>
+    <script src="../js/ui.js"></script>
+    <script src="../js/common.js"></script>
+    <script>
+        // 初始化
+        CommonUI.init('maintenance', true);
+
+        // 加载检修列表
+        async function loadMaintenance() {
+            const result = await API.get('maintenance.php', {}, true);
+            const list = document.getElementById('maintenanceList');
+
+            if (result.code === 0) {
+                renderMaintenance(result.data);
+            } else {
+                list.innerHTML = `<tr><td colspan="6" class="text-center py-5 text-danger">${result.message}</td></tr>`;
+            }
+        }
+
+        function renderMaintenance(data) {
+            const list = document.getElementById('maintenanceList');
+            const items = data.items || [];
+
+            document.getElementById('statMaintenance').textContent = data.stats.active || 0;
+            document.getElementById('statScheduled').textContent = data.stats.scheduled || 0;
+            document.getElementById('statCompleted').textContent = data.stats.completed || 0;
+
+            if (items.length === 0) {
+                list.innerHTML = '<tr><td colspan="6" class="text-center py-5 text-muted">暂无检修记录</td></tr>';
+                return;
+            }
+
+            const statusLabels = { 'active': '检修中', 'scheduled': '已计划', 'completed': '已完成' };
+            const statusClasses = { 'active': 'badge-warning', 'scheduled': 'badge-primary', 'completed': 'badge-success' };
+
+            list.innerHTML = items.map(item => `
+                <tr>
+                    <td class="fw-bold">${item.device_name}</td>
+                    <td>${item.start_time}</td>
+                    <td>${item.end_time}</td>
+                    <td>${item.reason}</td>
+                    <td><span class="badge ${statusClasses[item.status]}">${statusLabels[item.status]}</span></td>
+                    <td>
+                        ${item.status !== 'completed' ? `
+                            <button class="btn btn-sm btn-outline-success" onclick="completeMaintenance(${item.id})">
+                                <i class="fas fa-check"></i> 完成
+                            </button>
+                        ` : '-'}
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // 打开添加模态框
+        document.getElementById('addPlanBtn').addEventListener('click', async () => {
+            // 加载设备列表供选择
+            const result = await API.get('device.php', {}, true);
+            if (result.code === 0) {
+                const select = document.getElementById('formDevice');
+                select.innerHTML = result.data.items.map(d =>
+                    `<option value="${d.id}">${d.name} (${d.model})</option>`
+                ).join('');
+                const modal = new bootstrap.Modal(document.getElementById('maintenanceModal'));
+                modal.show();
+            } else {
+                UI.showToast('加载设备列表失败', 'error');
+            }
+        });
+
+        // 保存计划
+        document.getElementById('savePlanBtn').addEventListener('click', async () => {
+            const data = {
+                device_id: parseInt(document.getElementById('formDevice').value),
+                start_time: document.getElementById('formStartTime').value,
+                end_time: document.getElementById('formEndTime').value,
+                reason: document.getElementById('formReason').value
+            };
+
+            if (!data.start_time || !data.end_time || !data.reason) {
+                UI.showToast('请填写完整信息', 'warning');
+                return;
+            }
+
+            const btn = document.getElementById('savePlanBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 保存中...';
+
+            try {
+                const result = await API.post('maintenance.php?action=add', data, true);
+                if (result.code === 0) {
+                    UI.showToast('检修计划已添加');
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('maintenanceModal'));
+                    modal.hide();
+                    loadMaintenance();
+                } else {
+                    UI.showToast(result.message, 'error');
+                }
+            } catch (error) {
+                UI.showToast('网络请求失败', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '保存';
+            }
+        });
+
+        // 完成检修
+        async function completeMaintenance(id) {
+            if (!confirm('确定该检修已完成吗？设备将恢复为可用状态。')) return;
+
+            try {
+                const result = await API.post('maintenance.php?action=complete', { id }, true);
+                if (result.code === 0) {
+                    UI.showToast('检修已完成');
+                    loadMaintenance();
+                } else {
+                    UI.showToast(result.message, 'error');
+                }
+            } catch (error) {
+                UI.showToast('网络请求失败', 'error');
+            }
+        }
+
+        loadMaintenance();
+    </script>
+</body>
+
+</html>

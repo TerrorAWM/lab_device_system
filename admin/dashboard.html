@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>仪表盘 - 管理后台</title>
+    <link href="../css/bootstrap.min.css" rel="stylesheet">
+    <link href="../css/fontawesome/css/all.min.css" rel="stylesheet">
+    <link href="../css/style.css" rel="stylesheet">
+</head>
+
+<body>
+    <div class="main-wrapper">
+        <aside class="sidebar"></aside>
+        <div class="main-content">
+            <header class="top-nav"></header>
+            <div class="container-fluid">
+                <h1 class="page-title">仪表盘</h1>
+
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <div class="card bg-primary text-white text-center p-3 mb-3">
+                            <div class="h3 mb-0" id="statTotal">0</div>
+                            <div class="small">设备总数</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-success text-white text-center p-3 mb-3">
+                            <div class="h3 mb-0" id="statAvailable">0</div>
+                            <div class="small">可用设备</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-warning text-white text-center p-3 mb-3">
+                            <div class="h3 mb-0" id="statBorrowing">0</div>
+                            <div class="small">借出中</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-info text-white text-center p-3 mb-3">
+                            <div class="h3 mb-0" id="statPending">0</div>
+                            <div class="small">待审批预约</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-lg-8">
+                        <div class="card mb-4">
+                            <div class="card-header bg-white">
+                                <h5 class="card-title mb-0">最近借用记录</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-hover align-middle">
+                                        <thead>
+                                            <tr>
+                                                <th>用户</th>
+                                                <th>设备</th>
+                                                <th>借用日期</th>
+                                                <th>状态</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="recentBorrows">
+                                            <tr>
+                                                <td colspan="4" class="text-center py-4">加载中...</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="card mb-4">
+                            <div class="card-header bg-white">
+                                <h5 class="card-title mb-0">设备状态分布</h5>
+                            </div>
+                            <div class="card-body">
+                                <div id="statusChart"
+                                    style="height: 250px; display: flex; align-items: center; justify-content: center;">
+                                    <span class="text-muted">图表加载中...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/bootstrap.bundle.min.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/api.js"></script>
+    <script src="../js/ui.js"></script>
+    <script src="../js/common.js"></script>
+    <script>
+        // 初始化
+        CommonUI.init('dashboard', true);
+
+        // 加载统计数据
+        async function loadStats() {
+            const result = await API.get('stats.php', {}, true);
+            if (result.code === 0) {
+                renderStats(result.data);
+            } else {
+                UI.showToast(result.message, 'error');
+            }
+        }
+
+        function renderStats(data) {
+            document.getElementById('statTotal').textContent = data.summary.total_devices || 0;
+            document.getElementById('statAvailable').textContent = data.summary.available_devices || 0;
+            document.getElementById('statBorrowing').textContent = data.summary.borrowed_devices || 0;
+            document.getElementById('statPending').textContent = data.summary.pending_reservations || 0;
+
+            const recentList = document.getElementById('recentBorrows');
+            if (data.recent_borrows && data.recent_borrows.length > 0) {
+                recentList.innerHTML = data.recent_borrows.map(b => {
+                    const statusClass = {
+                        'borrowing': 'badge-warning',
+                        'returned': 'badge-success',
+                        'overdue': 'badge-danger'
+                    }[b.status] || 'badge-info';
+
+                    const statusText = {
+                        'borrowing': '借用中',
+                        'returned': '已归还',
+                        'overdue': '已逾期'
+                    }[b.status] || b.status;
+
+                    return `
+                        <tr>
+                            <td>${b.real_name} (${b.username})</td>
+                            <td>${b.device_name}</td>
+                            <td>${b.borrow_date}</td>
+                            <td><span class="badge ${statusClass}">${statusText}</span></td>
+                        </tr>
+                    `;
+                }).join('');
+            } else {
+                recentList.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-muted">暂无记录</td></tr>';
+            }
+
+            // 简单模拟图表
+            const statusChart = document.getElementById('statusChart');
+            const summary = data.summary;
+            statusChart.innerHTML = `
+                <div class="w-100">
+                    <div class="d-flex justify-content-between mb-1 small"><span>可用</span><span>${summary.available_devices}</span></div>
+                    <div class="progress mb-3" style="height: 10px;"><div class="progress-bar bg-success" style="width: ${(summary.available_devices / summary.total_devices * 100).toFixed(1)}%"></div></div>
+                    <div class="d-flex justify-content-between mb-1 small"><span>借出</span><span>${summary.borrowed_devices}</span></div>
+                    <div class="progress mb-3" style="height: 10px;"><div class="progress-bar bg-warning" style="width: ${(summary.borrowed_devices / summary.total_devices * 100).toFixed(1)}%"></div></div>
+                    <div class="d-flex justify-content-between mb-1 small"><span>维修</span><span>${summary.maintenance_devices}</span></div>
+                    <div class="progress mb-3" style="height: 10px;"><div class="progress-bar bg-danger" style="width: ${(summary.maintenance_devices / summary.total_devices * 100).toFixed(1)}%"></div></div>
+                </div>
+            `;
+        }
+
+        loadStats();
+    </script>
+</body>
+
+</html>

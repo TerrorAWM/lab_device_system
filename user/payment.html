@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>缴费中心 - 实验室设备管理系统</title>
+    <link href="../css/bootstrap.min.css" rel="stylesheet">
+    <link href="../css/fontawesome/css/all.min.css" rel="stylesheet">
+    <link href="../css/style.css" rel="stylesheet">
+</head>
+
+<body>
+    <div class="main-wrapper">
+        <aside class="sidebar"></aside>
+        <div class="main-content">
+            <header class="top-nav"></header>
+            <div class="container-fluid">
+                <h1 class="page-title">缴费中心</h1>
+
+                <div class="card">
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>订单号</th>
+                                        <th>费用描述</th>
+                                        <th>金额</th>
+                                        <th>状态</th>
+                                        <th>支付时间</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="paymentList">
+                                    <tr>
+                                        <td colspan="6" class="text-center py-5">
+                                            <div class="spinner-border text-primary" role="status">
+                                                <span class="visually-hidden">加载中...</span>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/bootstrap.bundle.min.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/api.js"></script>
+    <script src="../js/ui.js"></script>
+    <script src="../js/common.js"></script>
+    <script>
+        // 初始化
+        CommonUI.init('payment');
+
+        // 加载缴费列表
+        async function loadPayments() {
+            const result = await API.get('payment.php');
+            const list = document.getElementById('paymentList');
+
+            if (result.code === 0) {
+                renderPayments(result.data.items);
+            } else {
+                list.innerHTML = `<tr><td colspan="6" class="text-center py-5 text-danger">${result.message}</td></tr>`;
+            }
+        }
+
+        function renderPayments(items) {
+            const list = document.getElementById('paymentList');
+            if (!items || items.length === 0) {
+                list.innerHTML = '<tr><td colspan="6" class="text-center py-5 text-muted">暂无缴费记录</td></tr>';
+                return;
+            }
+
+            list.innerHTML = items.map(item => {
+                const statusClass = {
+                    'pending': 'badge-warning',
+                    'paid': 'badge-success',
+                    'cancelled': 'badge-secondary'
+                }[item.status] || 'badge-info';
+
+                const statusText = {
+                    'pending': '待支付',
+                    'paid': '已支付',
+                    'cancelled': '已取消'
+                }[item.status] || item.status;
+
+                let actions = '-';
+                if (item.status === 'pending') {
+                    actions = `
+                        <button class="btn btn-sm btn-primary" onclick="payBill(${item.payment_id})">
+                            <i class="fas fa-credit-card me-1"></i> 立即支付
+                        </button>
+                    `;
+                }
+
+                return `
+                    <tr>
+                        <td>${item.order_no}</td>
+                        <td class="fw-bold">${item.description}</td>
+                        <td class="text-primary fw-bold">¥${item.amount}</td>
+                        <td><span class="badge ${statusClass}">${statusText}</span></td>
+                        <td>${item.pay_time || '-'}</td>
+                        <td>${actions}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // 支付账单
+        async function payBill(id) {
+            if (!confirm('确认支付该笔费用吗？')) return;
+
+            try {
+                // 模拟支付流程：先 initiate 再 confirm
+                const initResult = await API.post('payment.php?action=pay', { payment_id: id });
+                if (initResult.code === 0) {
+                    // 模拟支付成功，直接调用 confirm
+                    const confirmResult = await API.post('payment.php?action=confirm', { order_no: initResult.data.order_no });
+                    if (confirmResult.code === 0) {
+                        UI.showToast('支付成功');
+                        loadPayments();
+                    } else {
+                        UI.showToast(confirmResult.message, 'error');
+                    }
+                } else {
+                    UI.showToast(initResult.message, 'error');
+                }
+            } catch (error) {
+                UI.showToast('网络请求失败', 'error');
+            }
+        }
+
+        loadPayments();
+    </script>
+</body>
+
+</html>

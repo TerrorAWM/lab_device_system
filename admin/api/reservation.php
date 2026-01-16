@@ -99,35 +99,51 @@ function getReservationList(): void
     $statusMap = [0 => 'pending', 1 => 'approved', 2 => 'rejected', 3 => 'cancelled', 4 => 'completed'];
 
     $items = array_map(function($r) use ($statusMap, $pdo) {
-        // 获取当前步骤信息
-        $stepInfo = null;
-        if ($r['status'] == 0) {
-            $stmt = $pdo->prepare('
-                SELECT * FROM t_approval_workflow 
-                WHERE user_type = ? AND step_order = ? AND is_enabled = 1
-            ');
-            $stmt->execute([$r['user_type'], $r['current_step']]);
-            $stepInfo = $stmt->fetchAll();
-        }
+        // 获取完整审批流程状态
+        $stmt = $pdo->prepare('
+            SELECT * FROM t_approval_workflow 
+            WHERE user_type = ? AND is_enabled = 1 
+            ORDER BY step_order ASC
+        ');
+        $stmt->execute([$r['user_type']]);
+        $workflow = $stmt->fetchAll();
         
+        $approvals = $r['approvals'] ? json_decode($r['approvals'], true) : [];
+        
+        $workflowNodes = array_map(function($w) use ($r, $approvals) {
+            $status = 'waiting';
+            if (isset($approvals[$w['role_type']])) {
+                $status = $approvals[$w['role_type']]['action'] === 'approve' ? 'approved' : 'rejected';
+            } elseif ($r['status'] == 0 && $r['current_step'] == $w['step_order']) {
+                $status = 'pending';
+            } elseif ($r['status'] == 2) { // 已驳回
+                $status = 'rejected';
+            }
+            
+            return [
+                'node_type' => $w['role_type'],
+                'description' => $w['description'],
+                'status' => $status
+            ];
+        }, $workflow);
+        
+        $userTypeTextMap = ['teacher' => '教师', 'student' => '学生', 'external' => '校外人员'];
+
         return [
             'id' => $r['reservation_id'],
             'user_id' => $r['user_id'],
-            'user_name' => $r['user_name'],
+            'real_name' => $r['user_name'],
+            'username' => $r['username'] ?? '',
             'user_type' => $r['user_type'],
-            'user_phone' => $r['user_phone'],
+            'user_type_text' => $userTypeTextMap[$r['user_type']] ?? $r['user_type'],
             'device_id' => $r['device_id'],
             'device_name' => $r['device_name'],
-            'model' => $r['model'],
-            'location' => $r['location'],
             'reserve_date' => $r['reserve_date'],
             'time_slot' => $r['time_slot'],
             'purpose' => $r['purpose'],
             'status' => $statusMap[$r['status']] ?? 'unknown',
             'status_code' => $r['status'],
-            'current_step' => $r['current_step'],
-            'current_step_info' => $stepInfo,
-            'reject_reason' => $r['reject_reason'],
+            'workflow_nodes' => $workflowNodes,
             'created_at' => $r['created_at']
         ];
     }, $reservations);

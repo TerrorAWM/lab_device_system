@@ -108,7 +108,19 @@ function getPaymentList(): void
         ];
     }, $payments);
 
-    respOK(buildPaginatedResponse($items, $total, $pagination));
+    // 查询总金额统计
+    $stmt = $pdo->query('SELECT SUM(amount) FROM t_payment WHERE status = 1');
+    $totalPaid = (float)$stmt->fetchColumn();
+    $stmt = $pdo->query('SELECT SUM(amount) FROM t_payment WHERE status = 0');
+    $totalUnpaid = (float)$stmt->fetchColumn();
+
+    $response = buildPaginatedResponse($items, $total, $pagination);
+    $response['stats'] = [
+        'total_paid' => $totalPaid,
+        'total_unpaid' => $totalUnpaid
+    ];
+
+    respOK($response);
 }
 
 /**

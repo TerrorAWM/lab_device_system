@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>设备列表 - 实验室设备管理系统</title>
+    <link href="../css/bootstrap.min.css" rel="stylesheet">
+    <link href="../css/fontawesome/css/all.min.css" rel="stylesheet">
+    <link href="../css/style.css" rel="stylesheet">
+    <style>
+        .device-card {
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .device-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .device-img-placeholder {
+            height: 150px;
+            background: #f8f9fa;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            color: #dee2e6;
+            border-bottom: 1px solid #eee;
+        }
+
+        .device-status-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="main-wrapper">
+        <aside class="sidebar"></aside>
+        <div class="main-content">
+            <header class="top-nav"></header>
+            <div class="container-fluid">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h1 class="page-title mb-0">设备列表</h1>
+                </div>
+
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="input-group">
+                                    <span class="input-group-text bg-white border-end-0"><i
+                                            class="fas fa-search text-muted"></i></span>
+                                    <input type="text" class="form-control border-start-0" id="keywordInput"
+                                        placeholder="搜索设备名称、型号...">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <select class="form-select" id="categorySelect">
+                                    <option value="">所有类别</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <button class="btn btn-primary w-100" id="searchBtn">搜索</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row" id="deviceGrid">
+                    <!-- 设备卡片将在这里渲染 -->
+                    <div class="col-12 text-center py-5">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">加载中...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <nav class="mt-4">
+                    <ul class="pagination justify-content-center" id="pagination"></ul>
+                </nav>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/auth.js"></script>
+    <script src="../js/api.js"></script>
+    <script src="../js/ui.js"></script>
+    <script src="../js/common.js"></script>
+    <script>
+        let currentPage = 1;
+        const pageSize = 12;
+
+        // 初始化
+        CommonUI.init('device_list');
+
+        // 加载类别
+        async function loadCategories() {
+            const result = await API.get('device.php?action=categories');
+            if (result.code === 0) {
+                const select = document.getElementById('categorySelect');
+                result.data.forEach(cat => {
+                    if (cat.category !== '全部设备') {
+                        const opt = document.createElement('option');
+                        opt.value = cat.category;
+                        opt.textContent = `${cat.category} (${cat.device_count})`;
+                        select.appendChild(opt);
+                    }
+                });
+            }
+        }
+
+        // 加载设备列表
+        async function loadDevices(page = 1) {
+            currentPage = page;
+            const keyword = document.getElementById('keywordInput').value;
+            const category = document.getElementById('categorySelect').value;
+            const grid = document.getElementById('deviceGrid');
+
+            const result = await API.get('device.php', {
+                page,
+                page_size: pageSize,
+                keyword,
+                category
+            });
+
+            if (result.code === 0) {
+                renderDeviceGrid(result.data.items);
+                renderPagination(result.data.pagination);
+            } else {
+                grid.innerHTML = `<div class="col-12 text-center py-5 text-danger">${result.message}</div>`;
+            }
+        }
+
+        // 渲染设备网格
+        function renderDeviceGrid(items) {
+            const grid = document.getElementById('deviceGrid');
+            if (items.length === 0) {
+                grid.innerHTML = '<div class="col-12 text-center py-5 text-muted">暂无符合条件的设备</div>';
+                return;
+            }
+
+            const user = Auth.getUser();
+            const isFree = user.user_type === 'teacher' || user.user_type === 'student';
+
+            grid.innerHTML = items.map(item => {
+                const statusClass = {
+                    'available': 'badge-success',
+                    'borrowed': 'badge-warning',
+                    'maintenance': 'badge-danger',
+                    'scrapped': 'badge-secondary'
+                }[item.status] || 'badge-info';
+
+                const statusText = {
+                    'available': '可用',
+                    'borrowed': '已借出',
+                    'maintenance': '维修中',
+                    'scrapped': '已报废'
+                }[item.status] || item.status;
+
+                const priceHtml = isFree
+                    ? `<span class="text-success fw-bold">免费</span>`
+                    : `<span class="text-primary fw-bold">¥${item.rent_price}/天</span>`;
+
+                return `
+                    <div class="col-xl-3 col-lg-4 col-md-6 mb-4">
+                        <div class="card device-card h-100" onclick="location.href='device_detail.html?id=${item.id}'">
+                            <div class="position-relative">
+                                ${item.image_url ?
+                        `<img src="${item.image_url}" class="card-img-top" style="height:150px; object-fit:cover;">` :
+                        `<div class="device-img-placeholder"><i class="fas fa-microchip"></i></div>`
+                    }
+                                <span class="badge ${statusClass} device-status-badge">${statusText}</span>
+                            </div>
+                            <div class="card-body">
+                                <h5 class="card-title text-truncate" title="${item.name}">${item.name}</h5>
+                                <p class="card-text text-muted small mb-2 text-truncate">${item.model}</p>
+                                <div class="d-flex justify-content-between align-items-center mt-3">
+                                    <span class="text-muted small"><i class="fas fa-map-marker-alt me-1"></i>${item.location || '实验室'}</span>
+                                    ${priceHtml}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // 渲染分页
+        function renderPagination(p) {
+            const pag = document.getElementById('pagination');
+            if (p.total_pages <= 1) {
+                pag.innerHTML = '';
+                return;
+            }
+
+            let html = `
+                <li class="page-item ${p.page === 1 ? 'disabled' : ''}">
+                    <a class="page-link" href="#" onclick="loadDevices(${p.page - 1})">上一页</a>
+                </li>
+            `;
+
+            for (let i = 1; i <= p.total_pages; i++) {
+                if (i === 1 || i === p.total_pages || (i >= p.page - 2 && i <= p.page + 2)) {
+                    html += `
+                        <li class="page-item ${i === p.page ? 'active' : ''}">
+                            <a class="page-link" href="#" onclick="loadDevices(${i})">${i}</a>
+                        </li>
+                    `;
+                } else if (i === p.page - 3 || i === p.page + 3) {
+                    html += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+                }
+            }
+
+            html += `
+                <li class="page-item ${p.page === p.total_pages ? 'disabled' : ''}">
+                    <a class="page-link" href="#" onclick="loadDevices(${p.page + 1})">下一页</a>
+                </li>
+            `;
+
+            pag.innerHTML = html;
+        }
+
+        // 事件监听
+        document.getElementById('searchBtn').addEventListener('click', () => loadDevices(1));
+        document.getElementById('keywordInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') loadDevices(1);
+        });
+        document.getElementById('categorySelect').addEventListener('change', () => loadDevices(1));
+
+        // 初始加载
+        loadCategories();
+        loadDevices();
+    </script>
+</body>
+
+</html>

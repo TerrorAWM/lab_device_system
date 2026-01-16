@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>个人中心 - 实验室设备管理系统</title>
+    <link href="../css/bootstrap.min.css" rel="stylesheet">
+    <link href="../css/fontawesome/css/all.min.css" rel="stylesheet">
+    <link href="../css/style.css" rel="stylesheet">
+    <style>
+        .profile-avatar {
+            width: 100px;
+            height: 100px;
+            background: #e9ecef;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            color: #adb5bd;
+            margin: 0 auto 1.5rem;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="main-wrapper">
+        <aside class="sidebar"></aside>
+        <div class="main-content">
+            <header class="top-nav"></header>
+            <div class="container-fluid">
+                <h1 class="page-title">个人中心</h1>
+
+                <div class="row">
+                    <div class="col-lg-4">
+                        <div class="card text-center mb-4">
+                            <div class="card-body">
+                                <div class="profile-avatar" id="profileAvatar">?</div>
+                                <h4 id="displayName" class="mb-1">-</h4>
+                                <p id="displayRole" class="text-muted mb-3">-</p>
+                                <div class="d-grid gap-2">
+                                    <button class="btn btn-outline-primary" data-bs-toggle="modal"
+                                        data-bs-target="#passwordModal">
+                                        <i class="fas fa-key me-2"></i> 修改密码
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-8">
+                        <div class="card mb-4">
+                            <div class="card-header bg-white">
+                                <h5 class="card-title mb-0">基本信息</h5>
+                            </div>
+                            <div class="card-body">
+                                <form id="profileForm">
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label">用户名</label>
+                                            <input type="text" class="form-control" id="username" readonly>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label">真实姓名</label>
+                                            <input type="text" class="form-control" id="realName" required>
+                                        </div>
+                                    </div>
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label">用户类型</label>
+                                            <input type="text" class="form-control" id="userType" readonly>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label">联系电话</label>
+                                            <input type="tel" class="form-control" id="phone">
+                                        </div>
+                                    </div>
+
+                                    <div id="extraFields"></div>
+
+                                    <div class="mt-4">
+                                        <button type="submit" class="btn btn-primary" id="saveProfileBtn">
+                                            <i class="fas fa-save me-2"></i> 保存修改
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 修改密码模态框 -->
+    <div class="modal fade" id="passwordModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">修改登录密码</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="passwordForm">
+                        <div class="mb-3">
+                            <label class="form-label">当前密码</label>
+                            <input type="password" class="form-control" id="oldPassword" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">新密码</label>
+                            <input type="password" class="form-control" id="newPassword" placeholder="至少6位" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">确认新密码</label>
+                            <input type="password" class="form-control" id="confirmPassword" required>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" id="savePasswordBtn">确认修改</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/bootstrap.bundle.min.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/api.js"></script>
+    <script src="../js/ui.js"></script>
+    <script src="../js/common.js"></script>
+    <script>
+        // 初始化
+        CommonUI.init('profile');
+
+        const typeMap = {
+            'teacher': '校内教师',
+            'student': '校内学生',
+            'external': '校外人员'
+        };
+
+        // 加载个人信息
+        async function loadProfile() {
+            const result = await API.get('personal.php');
+            if (result.code === 0) {
+                renderProfile(result.data);
+            } else {
+                UI.showToast(result.message, 'error');
+            }
+        }
+
+        function renderProfile(data) {
+            document.getElementById('username').value = data.username;
+            document.getElementById('realName').value = data.real_name;
+            document.getElementById('userType').value = typeMap[data.user_type] || data.user_type;
+            document.getElementById('phone').value = data.phone || '';
+
+            document.getElementById('displayName').textContent = data.real_name;
+            document.getElementById('displayRole').textContent = typeMap[data.user_type] || data.user_type;
+            document.getElementById('profileAvatar').textContent = data.real_name.charAt(0);
+
+            // 渲染额外字段
+            const extra = document.getElementById('extraFields');
+            extra.innerHTML = '';
+
+            if (data.user_type === 'teacher') {
+                extra.innerHTML = `
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">职称</label>
+                            <input type="text" class="form-control" value="${data.title || ''}" readonly>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">所属学院</label>
+                            <input type="text" class="form-control" value="${data.college || ''}" readonly>
+                        </div>
+                    </div>
+                `;
+            } else if (data.user_type === 'student') {
+                extra.innerHTML = `
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">学号</label>
+                            <input type="text" class="form-control" value="${data.student_no || ''}" readonly>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">专业</label>
+                            <input type="text" class="form-control" value="${data.major || ''}" readonly>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">导师</label>
+                        <input type="text" class="form-control" value="${data.advisor_name || '未绑定'}" readonly>
+                    </div>
+                `;
+            } else if (data.user_type === 'external') {
+                extra.innerHTML = `
+                    <div class="mb-3">
+                        <label class="form-label">所在单位</label>
+                        <input type="text" class="form-control" value="${data.organization || ''}" readonly>
+                    </div>
+                `;
+            }
+        }
+
+        // 保存基本信息
+        document.getElementById('profileForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const realName = document.getElementById('realName').value;
+            const phone = document.getElementById('phone').value;
+
+            const btn = document.getElementById('saveProfileBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 保存中...';
+
+            try {
+                const result = await API.post('personal.php?action=update', {
+                    real_name: realName,
+                    phone: phone
+                });
+
+                if (result.code === 0) {
+                    UI.showToast('个人信息更新成功');
+                    // 更新本地存储中的用户信息
+                    const user = Auth.getUser();
+                    user.real_name = realName;
+                    user.phone = phone;
+                    localStorage.setItem('user', JSON.stringify(user));
+                    loadProfile();
+                } else {
+                    UI.showToast(result.message, 'error');
+                }
+            } catch (error) {
+                UI.showToast('网络请求失败', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-save me-2"></i> 保存修改';
+            }
+        });
+
+        // 修改密码
+        document.getElementById('savePasswordBtn').addEventListener('click', async () => {
+            const oldPwd = document.getElementById('oldPassword').value;
+            const newPwd = document.getElementById('newPassword').value;
+            const confirmPwd = document.getElementById('confirmPassword').value;
+
+            if (!oldPwd || !newPwd || !confirmPwd) {
+                UI.showToast('请填写完整密码信息', 'warning');
+                return;
+            }
+
+            if (newPwd !== confirmPwd) {
+                UI.showToast('两次输入的新密码不一致', 'error');
+                return;
+            }
+
+            if (newPwd.length < 6) {
+                UI.showToast('新密码至少需要6位', 'warning');
+                return;
+            }
+
+            const btn = document.getElementById('savePasswordBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 修改中...';
+
+            try {
+                const result = await API.post('personal.php?action=change_password', {
+                    old_password: oldPwd,
+                    new_password: newPwd
+                });
+
+                if (result.code === 0) {
+                    UI.showToast('密码修改成功，请重新登录');
+                    setTimeout(() => {
+                        Auth.logout();
+                        location.href = '../index.html';
+                    }, 1500);
+                } else {
+                    UI.showToast(result.message, 'error');
+                }
+            } catch (error) {
+                UI.showToast('网络请求失败', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '确认修改';
+            }
+        });
+
+        loadProfile();
+    </script>
+</body>
+
+</html>

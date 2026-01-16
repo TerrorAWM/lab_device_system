@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的预约 - 实验室设备管理系统</title>
+    <link href="../css/bootstrap.min.css" rel="stylesheet">
+    <link href="../css/fontawesome/css/all.min.css" rel="stylesheet">
+    <link href="../css/style.css" rel="stylesheet">
+</head>
+
+<body>
+    <div class="main-wrapper">
+        <aside class="sidebar"></aside>
+        <div class="main-content">
+            <header class="top-nav"></header>
+            <div class="container-fluid">
+                <h1 class="page-title">我的预约</h1>
+
+                <div class="card">
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>设备名称</th>
+                                        <th>预约日期</th>
+                                        <th>时段</th>
+                                        <th>申请目的</th>
+                                        <th>状态</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="reservationList">
+                                    <tr>
+                                        <td colspan="6" class="text-center py-5">
+                                            <div class="spinner-border text-primary" role="status">
+                                                <span class="visually-hidden">加载中...</span>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 修改预约模态框 -->
+    <div class="modal fade" id="editModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">修改预约申请</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editForm">
+                        <input type="hidden" id="editId">
+                        <div class="mb-3">
+                            <label class="form-label">设备名称</label>
+                            <input type="text" class="form-control" id="editDeviceName" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">预约日期</label>
+                            <input type="date" class="form-control" id="editDate" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">预约时段</label>
+                            <select class="form-select" id="editTimeSlot" required>
+                                <option value="08:00-10:00">08:00 - 10:00</option>
+                                <option value="10:00-12:00">10:00 - 12:00</option>
+                                <option value="14:00-16:00">14:00 - 16:00</option>
+                                <option value="16:00-18:00">16:00 - 18:00</option>
+                                <option value="19:00-21:00">19:00 - 21:00</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">使用目的</label>
+                            <textarea class="form-control" id="editPurpose" rows="3" required></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" id="saveEditBtn">保存修改</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/bootstrap.bundle.min.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/api.js"></script>
+    <script src="../js/ui.js"></script>
+    <script src="../js/common.js"></script>
+    <script>
+        // 初始化
+        CommonUI.init('reservation');
+
+        // 加载预约列表
+        async function loadReservations() {
+            const result = await API.get('reservation.php');
+            const list = document.getElementById('reservationList');
+
+            if (result.code === 0) {
+                renderReservations(result.data.items);
+            } else {
+                list.innerHTML = `<tr><td colspan="6" class="text-center py-5 text-danger">${result.message}</td></tr>`;
+            }
+        }
+
+        function renderReservations(items) {
+            const list = document.getElementById('reservationList');
+            if (!items || items.length === 0) {
+                list.innerHTML = '<tr><td colspan="6" class="text-center py-5 text-muted">暂无预约记录</td></tr>';
+                return;
+            }
+
+            list.innerHTML = items.map(item => {
+                const statusClass = {
+                    'pending': 'badge-warning',
+                    'approved': 'badge-success',
+                    'rejected': 'badge-danger',
+                    'cancelled': 'badge-secondary',
+                    'completed': 'badge-info'
+                }[item.status] || 'badge-info';
+
+                const statusText = {
+                    'pending': '待审批',
+                    'approved': '已通过',
+                    'rejected': '已拒绝',
+                    'cancelled': '已撤销',
+                    'completed': '已完成'
+                }[item.status] || item.status;
+
+                let actions = '-';
+                if (item.status === 'pending') {
+                    actions = `
+                        <button class="btn btn-sm btn-outline-primary me-1" onclick="openEditModal(${JSON.stringify(item).replace(/"/g, '&quot;')})">
+                            <i class="fas fa-edit"></i> 修改
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="cancelReservation(${item.id})">
+                            <i class="fas fa-times"></i> 撤销
+                        </button>
+                    `;
+                } else if (item.status === 'approved') {
+                    actions = `
+                        <button class="btn btn-sm btn-outline-danger" onclick="cancelReservation(${item.id})">
+                            <i class="fas fa-times"></i> 撤销
+                        </button>
+                    `;
+                }
+
+                return `
+                    <tr>
+                        <td class="fw-bold">${item.device_name}</td>
+                        <td>${item.reserve_date}</td>
+                        <td>${item.time_slot}</td>
+                        <td class="text-truncate" style="max-width: 200px;" title="${item.purpose}">${item.purpose}</td>
+                        <td><span class="badge ${statusClass}">${statusText}</span></td>
+                        <td>${actions}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // 撤销预约
+        async function cancelReservation(id) {
+            if (!confirm('确定要撤销该预约申请吗？')) return;
+
+            try {
+                const result = await API.post('reservation.php?action=cancel', { reservation_id: id });
+                if (result.code === 0) {
+                    UI.showToast('预约已撤销');
+                    loadReservations();
+                } else {
+                    UI.showToast(result.message, 'error');
+                }
+            } catch (error) {
+                UI.showToast('网络请求失败', 'error');
+            }
+        }
+
+        // 打开修改模态框
+        function openEditModal(item) {
+            document.getElementById('editId').value = item.id;
+            document.getElementById('editDeviceName').value = item.device_name;
+            document.getElementById('editDate').value = item.reserve_date;
+            document.getElementById('editTimeSlot').value = item.time_slot;
+            document.getElementById('editPurpose').value = item.purpose;
+
+            const modal = new bootstrap.Modal(document.getElementById('editModal'));
+            modal.show();
+        }
+
+        // 保存修改
+        document.getElementById('saveEditBtn').addEventListener('click', async () => {
+            const id = document.getElementById('editId').value;
+            const reserveDate = document.getElementById('editDate').value;
+            const timeSlot = document.getElementById('editTimeSlot').value;
+            const purpose = document.getElementById('editPurpose').value;
+
+            const btn = document.getElementById('saveEditBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 保存中...';
+
+            try {
+                const result = await API.post('reservation.php?action=update', {
+                    reservation_id: parseInt(id),
+                    reserve_date: reserveDate,
+                    time_slot: timeSlot,
+                    purpose: purpose
+                });
+
+                if (result.code === 0) {
+                    UI.showToast('修改成功');
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('editModal'));
+                    modal.hide();
+                    loadReservations();
+                } else {
+                    UI.showToast(result.message, 'error');
+                }
+            } catch (error) {
+                UI.showToast('网络请求失败', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '保存修改';
+            }
+        });
+
+        loadReservations();
+    </script>
+</body>
+
+</html>

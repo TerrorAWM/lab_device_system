@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>设备详情 - 实验室设备管理系统</title>
+    <link href="../css/bootstrap.min.css" rel="stylesheet">
+    <link href="../css/fontawesome/css/all.min.css" rel="stylesheet">
+    <link href="../css/style.css" rel="stylesheet">
+    <style>
+        .device-detail-img {
+            height: 300px;
+            background: #f8f9fa;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 5rem;
+            color: #dee2e6;
+            border-radius: 10px;
+        }
+
+        .info-label {
+            color: #6c757d;
+            width: 100px;
+            display: inline-block;
+        }
+
+        .occupied-slot {
+            background: #fff3cd;
+            border: 1px solid #ffeeba;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            margin-right: 5px;
+            margin-bottom: 5px;
+            display: inline-block;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="main-wrapper">
+        <aside class="sidebar"></aside>
+        <div class="main-content">
+            <header class="top-nav"></header>
+            <div class="container-fluid">
+                <div class="mb-4">
+                    <a href="device_list.html" class="text-muted text-decoration-none">
+                        <i class="fas fa-arrow-left me-1"></i> 返回列表
+                    </a>
+                </div>
+
+                <div class="row">
+                    <div class="col-lg-4 mb-4">
+                        <div class="card">
+                            <div class="card-body p-2">
+                                <div id="deviceImage" class="device-detail-img">
+                                    <i class="fas fa-microchip"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-8 mb-4">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start mb-3">
+                                    <div>
+                                        <h2 id="deviceName" class="mb-1">-</h2>
+                                        <p id="deviceModel" class="text-muted mb-0">-</p>
+                                    </div>
+                                    <span id="deviceStatus" class="badge">-</span>
+                                </div>
+
+                                <hr>
+
+                                <div class="row mb-3">
+                                    <div class="col-sm-6 mb-3">
+                                        <span class="info-label">设备类别</span>
+                                        <span id="deviceCategory" class="fw-bold">-</span>
+                                    </div>
+                                    <div class="col-sm-6 mb-3">
+                                        <span class="info-label">存放位置</span>
+                                        <span id="deviceLocation" class="fw-bold">-</span>
+                                    </div>
+                                    <div class="col-sm-6 mb-3">
+                                        <span class="info-label">生产厂商</span>
+                                        <span id="deviceManufacturer" class="fw-bold">-</span>
+                                    </div>
+                                    <div class="col-sm-6 mb-3">
+                                        <span class="info-label">租用价格</span>
+                                        <span id="devicePrice" class="text-primary fw-bold">-</span>
+                                    </div>
+                                </div>
+
+                                <div class="mb-4">
+                                    <h6 class="text-muted mb-2">设备用途 / 描述</h6>
+                                    <p id="devicePurpose" class="mb-0 text-secondary">-</p>
+                                </div>
+
+                                <div id="occupiedSection" class="mb-4" style="display:none;">
+                                    <h6 class="text-muted mb-2">已被占用时段 (近期)</h6>
+                                    <div id="occupiedSlots"></div>
+                                </div>
+
+                                <button class="btn btn-primary btn-lg w-100" id="reserveBtn" data-bs-toggle="modal"
+                                    data-bs-target="#reserveModal">
+                                    <i class="fas fa-calendar-plus me-2"></i> 立即预约
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 预约模态框 -->
+    <div class="modal fade" id="reserveModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">提交预约申请</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="reserveForm">
+                        <div class="mb-3">
+                            <label class="form-label">预约日期</label>
+                            <input type="date" class="form-control" id="reserveDate" required>
+                            <div class="form-text">请选择您需要使用设备的日期。</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">预约时段</label>
+                            <select class="form-select" id="timeSlot" required>
+                                <option value="">请选择时段</option>
+                                <option value="08:00-10:00">08:00 - 10:00</option>
+                                <option value="10:00-12:00">10:00 - 12:00</option>
+                                <option value="14:00-16:00">14:00 - 16:00</option>
+                                <option value="16:00-18:00">16:00 - 18:00</option>
+                                <option value="19:00-21:00">19:00 - 21:00</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">使用目的</label>
+                            <textarea class="form-control" id="purpose" rows="3" placeholder="请简述您的实验目的或使用原因..."
+                                required></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" id="submitReserveBtn">提交申请</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/bootstrap.bundle.min.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/api.js"></script>
+    <script src="../js/ui.js"></script>
+    <script src="../js/common.js"></script>
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const deviceId = params.get('id');
+
+        if (!deviceId) {
+            UI.showToast('参数错误', 'error');
+            setTimeout(() => location.href = 'device_list.html', 1500);
+        }
+
+        // 初始化
+        CommonUI.init('device_list');
+
+        // 设置日期限制（不能选今天之前的日期）
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('reserveDate').setAttribute('min', today);
+        document.getElementById('reserveDate').value = today;
+
+        // 加载详情
+        async function loadDetail() {
+            const result = await API.get('device.php', { id: deviceId });
+            if (result.code === 0) {
+                renderDetail(result.data);
+            } else {
+                UI.showToast(result.message, 'error');
+            }
+        }
+
+        function renderDetail(data) {
+            document.getElementById('deviceName').textContent = data.name;
+            document.getElementById('deviceModel').textContent = data.model;
+            document.getElementById('deviceCategory').textContent = data.category;
+            document.getElementById('deviceLocation').textContent = data.location || '实验室';
+            document.getElementById('deviceManufacturer').textContent = data.manufacturer || '未知';
+            document.getElementById('devicePurpose').textContent = data.purpose || '暂无描述';
+
+            const user = Auth.getUser();
+            const isFree = user.user_type === 'teacher' || user.user_type === 'student';
+            document.getElementById('devicePrice').textContent = isFree ? '免费' : `¥${data.rent_price}/天`;
+
+            const statusBadge = document.getElementById('deviceStatus');
+            const statusClass = {
+                'available': 'badge-success',
+                'borrowed': 'badge-warning',
+                'maintenance': 'badge-danger',
+                'scrapped': 'badge-secondary'
+            }[data.status] || 'badge-info';
+
+            const statusText = {
+                'available': '可用',
+                'borrowed': '已借出',
+                'maintenance': '维修中',
+                'scrapped': '已报废'
+            }[data.status] || data.status;
+
+            statusBadge.className = `badge ${statusClass}`;
+            statusBadge.textContent = statusText;
+
+            if (data.status !== 'available') {
+                const btn = document.getElementById('reserveBtn');
+                btn.disabled = true;
+                btn.className = 'btn btn-secondary btn-lg w-100';
+                btn.innerHTML = '<i class="fas fa-ban me-2"></i> 当前不可预约';
+            }
+
+            if (data.image_url) {
+                document.getElementById('deviceImage').innerHTML = `<img src="${data.image_url}" style="max-width:100%; max-height:100%; border-radius:8px;">`;
+            }
+
+            // 渲染占用时段
+            if (data.occupied_slots && data.occupied_slots.length > 0) {
+                document.getElementById('occupiedSection').style.display = 'block';
+                const container = document.getElementById('occupiedSlots');
+                container.innerHTML = data.occupied_slots.map(slot => `
+                    <span class="occupied-slot">${slot.reserve_date} ${slot.time_slot}</span>
+                `).join('');
+            }
+        }
+
+        // 提交预约
+        document.getElementById('submitReserveBtn').addEventListener('click', async () => {
+            const reserveDate = document.getElementById('reserveDate').value;
+            const timeSlot = document.getElementById('timeSlot').value;
+            const purpose = document.getElementById('purpose').value;
+
+            if (!reserveDate || !timeSlot || !purpose) {
+                UI.showToast('请填写完整预约信息', 'warning');
+                return;
+            }
+
+            const btn = document.getElementById('submitReserveBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 提交中...';
+
+            try {
+                const result = await API.post('reservation.php', {
+                    device_id: parseInt(deviceId),
+                    reserve_date: reserveDate,
+                    time_slot: timeSlot,
+                    purpose: purpose
+                });
+
+                if (result.code === 0) {
+                    UI.showToast('预约申请已提交，请等待审核');
+                    // 关闭模态框
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('reserveModal'));
+                    modal.hide();
+                    setTimeout(() => location.href = 'reservation.html', 1500);
+                } else {
+                    UI.showToast(result.message, 'error');
+                }
+            } catch (error) {
+                UI.showToast('网络请求失败', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '提交申请';
+            }
+        });
+
+        loadDetail();
+    </script>
+</body>
+
+</html>

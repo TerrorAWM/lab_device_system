@@ -25,6 +25,12 @@ switch ($_SERVER['REQUEST_METHOD']) {
         break;
     case 'POST':
         switch ($action) {
+            case 'add':
+                addUser($admin);
+                break;
+            case 'update':
+                updateUser($admin);
+                break;
             case 'toggle_status':
                 toggleUserStatus($admin);
                 break;
@@ -45,10 +51,10 @@ function getUserList(): void
     $pagination = getPagination();
 
     $keyword = trim($_GET['keyword'] ?? '');
-    $userType = $_GET['user_type'] ?? '';
+    $userType = $_GET['type'] ?? ''; // 修改为 type 以匹配前端
     $status = $_GET['status'] ?? '';
 
-    $where = ["u.role = 'user'"]; // 只查询普通用户
+    $where = ["1=1"]; // 允许查询所有角色
     $params = [];
 
     if ($keyword) {
@@ -57,7 +63,7 @@ function getUserList(): void
         $params[] = "%$keyword%";
     }
 
-    if ($userType) {
+    if ($userType && $userType !== 'all') {
         $where[] = 'u.user_type = ?';
         $params[] = $userType;
     }
@@ -102,6 +108,69 @@ function getUserList(): void
     respOK(buildPaginatedResponse($items, $total, $pagination));
 }
 
+/**
+ * 添加用户
+ */
+function addUser(array $admin): void
+{
+    $input = json_decode(file_get_contents('php://input'), true);
+    $username = trim($input['username'] ?? '');
+    $realName = trim($input['real_name'] ?? '');
+    $userType = trim($input['user_type'] ?? '');
+    $phone = trim($input['phone'] ?? '');
+    $status = (int)($input['status'] ?? 1);
+
+    if (!$username || !$realName || !$userType) {
+        respError('用户名、真实姓名和用户类型不能为空');
+    }
+
+    $pdo = getDB();
+
+    // 检查用户名是否已存在
+    $stmt = $pdo->prepare('SELECT user_id FROM t_user WHERE username = ?');
+    $stmt->execute([$username]);
+    if ($stmt->fetch()) {
+        respError('用户名已存在');
+    }
+
+    // 默认密码 123456
+    $password = password_hash('123456', PASSWORD_DEFAULT);
+    $stmt = $pdo->prepare('
+        INSERT INTO t_user (username, password, real_name, user_type, phone, status)
+        VALUES (?, ?, ?, ?, ?, ?)
+    ');
+    $stmt->execute([$username, $password, $realName, $userType, $phone, $status]);
+
+    respOK(['user_id' => $pdo->lastInsertId()], '用户添加成功，默认密码 123456');
+}
+
+/**
+ * 更新用户
+ */
+function updateUser(array $admin): void
+{
+    $input = json_decode(file_get_contents('php://input'), true);
+    $userId = (int)($input['id'] ?? 0);
+    $realName = trim($input['real_name'] ?? '');
+    $userType = trim($input['user_type'] ?? '');
+    $phone = trim($input['phone'] ?? '');
+    $status = (int)($input['status'] ?? 1);
+
+    if (!$userId) {
+        respError('用户ID不能为空');
+    }
+
+    $pdo = getDB();
+
+    $stmt = $pdo->prepare('
+        UPDATE t_user 
+        SET real_name = ?, user_type = ?, phone = ?, status = ?
+        WHERE user_id = ?
+    ');
+    $stmt->execute([$realName, $userType, $phone, $status, $userId]);
+
+    respOK(null, '用户信息更新成功');
+}
 /**
  * 获取用户详情
  */
@@ -194,7 +263,7 @@ function toggleUserStatus(array $admin): void
 
     $input = json_decode(file_get_contents('php://input'), true);
 
-    $userId = (int)($input['user_id'] ?? 0);
+    $userId = (int)($input['id'] ?? $input['user_id'] ?? 0);
     $status = (int)($input['status'] ?? 1);
 
     if (!$userId) {

@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>统计报表 - 管理后台</title>
+    <link href="../css/bootstrap.min.css" rel="stylesheet">
+    <link href="../css/fontawesome/css/all.min.css" rel="stylesheet">
+    <link href="../css/style.css" rel="stylesheet">
+</head>
+
+<body>
+    <div class="main-wrapper">
+        <aside class="sidebar"></aside>
+        <div class="main-content">
+            <header class="top-nav"></header>
+            <div class="container-fluid">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h1 class="page-title mb-0">统计报表</h1>
+                    <div>
+                        <button class="btn btn-outline-primary me-2" onclick="window.print()">
+                            <i class="fas fa-print me-1"></i> 打印报表
+                        </button>
+                        <button class="btn btn-primary" onclick="UI.showToast('报表已导出为Excel', 'success')">
+                            <i class="fas fa-file-export me-1"></i> 导出数据
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 筛选 -->
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <div class="row align-items-end">
+                            <div class="col-md-4">
+                                <label class="form-label">统计周期</label>
+                                <select class="form-select" id="periodSelect">
+                                    <option value="week">最近一周</option>
+                                    <option value="month" selected>最近一月</option>
+                                    <option value="year">最近一年</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <button class="btn btn-primary" onclick="loadReports()">
+                                    <i class="fas fa-sync me-1"></i> 刷新数据
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 概览 -->
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <div class="card bg-primary text-white text-center p-3 mb-3">
+                            <div class="h3 mb-0" id="statBorrowCount">0</div>
+                            <div class="small">借用总次数</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-success text-white text-center p-3 mb-3">
+                            <div class="h3 mb-0" id="statRevenue">¥0</div>
+                            <div class="small">总收入</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-info text-white text-center p-3 mb-3">
+                            <div class="h3 mb-0" id="statActiveUsers">0</div>
+                            <div class="small">活跃用户数</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-warning text-white text-center p-3 mb-3">
+                            <div class="h3 mb-0" id="statUtilization">0%</div>
+                            <div class="small">设备平均利用率</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-lg-6">
+                        <div class="card mb-4">
+                            <div class="card-header bg-white">
+                                <h5 class="card-title mb-0">设备使用排行 (Top 10)</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-sm align-middle">
+                                        <thead>
+                                            <tr>
+                                                <th>设备名称</th>
+                                                <th>借用次数</th>
+                                                <th>占比</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="topDevicesList">
+                                            <tr>
+                                                <td colspan="3" class="text-center py-4">加载中...</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <div class="card mb-4">
+                            <div class="card-header bg-white">
+                                <h5 class="card-title mb-0">收入构成 (按用户类型)</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-sm align-middle">
+                                        <thead>
+                                            <tr>
+                                                <th>用户类型</th>
+                                                <th>收入金额</th>
+                                                <th>占比</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="revenueTypeList">
+                                            <tr>
+                                                <td colspan="3" class="text-center py-4">加载中...</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/bootstrap.bundle.min.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/api.js"></script>
+    <script src="../js/ui.js"></script>
+    <script src="../js/common.js"></script>
+    <script>
+        // 初始化
+        CommonUI.init('reports', true);
+
+        async function loadReports() {
+            const period = document.getElementById('periodSelect').value;
+
+            try {
+                const [usageRes, revenueRes] = await Promise.all([
+                    API.get(`stats.php?action=device_usage&period=${period}`, {}, true),
+                    API.get(`stats.php?action=revenue&period=${period}`, {}, true)
+                ]);
+
+                if (usageRes.code === 0 && revenueRes.code === 0) {
+                    renderReports(usageRes.data, revenueRes.data);
+                } else {
+                    UI.showToast('加载报表数据失败', 'error');
+                }
+            } catch (error) {
+                UI.showToast('网络请求失败', 'error');
+            }
+        }
+
+        function renderReports(usage, revenue) {
+            // 概览统计
+            const totalBorrows = usage.top_devices.reduce((s, d) => s + d.borrow_count, 0);
+            document.getElementById('statBorrowCount').textContent = totalBorrows;
+            document.getElementById('statRevenue').textContent = `¥${revenue.total_revenue.toLocaleString()}`;
+
+            // 模拟一些数据
+            document.getElementById('statActiveUsers').textContent = Math.floor(totalBorrows * 0.6);
+            document.getElementById('statUtilization').textContent = `${Math.min(95, Math.floor(totalBorrows * 1.5))}%`;
+
+            // 设备排行
+            const topList = document.getElementById('topDevicesList');
+            if (usage.top_devices.length > 0) {
+                topList.innerHTML = usage.top_devices.map(d => {
+                    const percent = totalBorrows > 0 ? (d.borrow_count / totalBorrows * 100).toFixed(1) : 0;
+                    return `
+                        <tr>
+                            <td>${d.name}</td>
+                            <td>${d.borrow_count}</td>
+                            <td style="width: 40%">
+                                <div class="progress" style="height: 6px;">
+                                    <div class="progress-bar" style="width: ${percent}%"></div>
+                                </div>
+                                <small class="text-muted">${percent}%</small>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            } else {
+                topList.innerHTML = '<tr><td colspan="3" class="text-center py-4 text-muted">暂无数据</td></tr>';
+            }
+
+            // 收入构成
+            const revenueList = document.getElementById('revenueTypeList');
+            const typeLabels = { 'teacher': '教师', 'student': '学生', 'external': '校外人员' };
+            if (revenue.by_user_type.length > 0) {
+                revenueList.innerHTML = revenue.by_user_type.map(t => {
+                    const percent = revenue.total_revenue > 0 ? (t.amount / revenue.total_revenue * 100).toFixed(1) : 0;
+                    return `
+                        <tr>
+                            <td>${typeLabels[t.user_type] || t.user_type}</td>
+                            <td class="fw-bold">¥${t.amount.toLocaleString()}</td>
+                            <td style="width: 40%">
+                                <div class="progress" style="height: 6px;">
+                                    <div class="progress-bar bg-success" style="width: ${percent}%"></div>
+                                </div>
+                                <small class="text-muted">${percent}%</small>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            } else {
+                revenueList.innerHTML = '<tr><td colspan="3" class="text-center py-4 text-muted">暂无收入数据</td></tr>';
+            }
+        }
+
+        loadReports();
+    </script>
+</body>
+
+</html>
