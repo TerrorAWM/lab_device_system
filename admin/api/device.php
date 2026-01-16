@@ -265,6 +265,40 @@ function updateDevice(array $admin): void
         }
     }
 
+    // 处理状态字段（前端可能发送字符串状态，需要转换为数字状态码）
+    if (isset($input['status'])) {
+        $statusValue = $input['status'];
+        
+        // 如果是字符串状态，转换为数字状态码
+        if (is_string($statusValue)) {
+            $statusMap = [
+                'available' => 1,
+                'borrowed' => 2,
+                'maintenance' => 3,
+                'scrapped' => 4
+            ];
+            $statusValue = $statusMap[$statusValue] ?? null;
+        }
+        
+        if ($statusValue !== null && in_array((int)$statusValue, [1, 2, 3, 4])) {
+            // 如果当前是借出状态且有未归还记录，不允许直接修改为其他状态
+            $stmt = $pdo->prepare('SELECT status FROM t_device WHERE device_id = ?');
+            $stmt->execute([$deviceId]);
+            $currentDevice = $stmt->fetch();
+            
+            if ($currentDevice && $currentDevice['status'] == 2 && (int)$statusValue != 2) {
+                $stmt = $pdo->prepare('SELECT record_id FROM t_borrow_record WHERE device_id = ? AND status = 1');
+                $stmt->execute([$deviceId]);
+                if ($stmt->fetch()) {
+                    respError('设备当前正在借用中，请先归还后再修改状态');
+                }
+            }
+            
+            $updates[] = 'status = ?';
+            $params[] = (int)$statusValue;
+        }
+    }
+
     if (empty($updates)) {
         respError('没有要更新的字段');
     }

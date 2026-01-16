@@ -80,7 +80,7 @@ function getBorrowList(): void
     // 查询数据
     $sql = "
         SELECT b.*, 
-               u.real_name as user_name, u.user_type, u.phone as user_phone,
+               u.real_name as user_name, u.username, u.user_type, u.phone as user_phone,
                d.device_name, d.model, d.location
         FROM t_borrow_record b
         LEFT JOIN t_user u ON b.user_id = u.user_id
@@ -100,16 +100,19 @@ function getBorrowList(): void
             'id' => $b['record_id'],
             'reservation_id' => $b['reservation_id'],
             'user_id' => $b['user_id'],
-            'user_name' => $b['user_name'],
-            'user_type' => $b['user_type'],
-            'user_phone' => $b['user_phone'],
+            'user_name' => $b['user_name'] ?? '',
+            'username' => $b['username'] ?? '',
+            'real_name' => $b['user_name'] ?? '', // 兼容前端使用real_name
+            'user_type' => $b['user_type'] ?? '',
+            'user_phone' => $b['user_phone'] ?? '',
             'device_id' => $b['device_id'],
-            'device_name' => $b['device_name'],
-            'model' => $b['model'],
-            'location' => $b['location'],
-            'borrow_date' => $b['borrow_date'],
-            'time_slot' => $b['time_slot'],
-            'actual_return' => $b['actual_return'],
+            'device_name' => $b['device_name'] ?? '',
+            'model' => $b['model'] ?? '',
+            'location' => $b['location'] ?? '',
+            'borrow_date' => $b['borrow_date'] ?? '',
+            'time_slot' => $b['time_slot'] ?? '',
+            'actual_return_time' => $b['actual_return'] ?? null,
+            'actual_return' => $b['actual_return'] ?? null,
             'status' => $statusMap[$b['status']] ?? 'unknown',
             'status_code' => $b['status']
         ];

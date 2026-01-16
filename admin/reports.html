@@ -8,6 +8,13 @@
     <link href="../css/bootstrap.min.css" rel="stylesheet">
     <link href="../css/fontawesome/css/all.min.css" rel="stylesheet">
     <link href="../css/style.css" rel="stylesheet">
+    <style>
+        @media print {
+            .btn, .card-body .row:first-child { display: none; }
+            .card { border: none; box-shadow: none; }
+            .page-title { page-break-after: avoid; }
+        }
+    </style>
 </head>
 
 <body>
@@ -19,11 +26,11 @@
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <h1 class="page-title mb-0">统计报表</h1>
                     <div>
-                        <button class="btn btn-outline-primary me-2" onclick="window.print()">
+                        <button class="btn btn-outline-primary me-2" onclick="printReport()">
                             <i class="fas fa-print me-1"></i> 打印报表
                         </button>
-                        <button class="btn btn-primary" onclick="UI.showToast('报表已导出为Excel', 'success')">
-                            <i class="fas fa-file-export me-1"></i> 导出数据
+                        <button class="btn btn-primary" onclick="exportReport()">
+                            <i class="fas fa-file-export me-1"></i> 导出CSV
                         </button>
                     </div>
                 </div>
@@ -142,6 +149,9 @@
         // 初始化
         CommonUI.init('reports', true);
 
+        // 保存报表数据用于导出
+        let reportData = { usage: null, revenue: null };
+
         async function loadReports() {
             const period = document.getElementById('periodSelect').value;
 
@@ -152,6 +162,8 @@
                 ]);
 
                 if (usageRes.code === 0 && revenueRes.code === 0) {
+                    reportData.usage = usageRes.data;
+                    reportData.revenue = revenueRes.data;
                     renderReports(usageRes.data, revenueRes.data);
                 } else {
                     UI.showToast('加载报表数据失败', 'error');
@@ -215,6 +227,70 @@
             } else {
                 revenueList.innerHTML = '<tr><td colspan="3" class="text-center py-4 text-muted">暂无收入数据</td></tr>';
             }
+        }
+
+        // 打印报表
+        function printReport() {
+            window.print();
+        }
+
+        // 导出CSV报表
+        function exportReport() {
+            if (!reportData.usage || !reportData.revenue) {
+                UI.showToast('请先加载报表数据', 'error');
+                return;
+            }
+
+            const period = document.getElementById('periodSelect').value;
+            const periodLabels = { 'week': '最近一周', 'month': '最近一月', 'year': '最近一年' };
+            const periodLabel = periodLabels[period] || period;
+            const date = new Date().toLocaleDateString('zh-CN');
+
+            // 构建CSV内容
+            let csv = '\uFEFF'; // BOM for Excel中文支持
+            csv += `实验室设备管理系统统计报表\n`;
+            csv += `统计周期：${periodLabel}\n`;
+            csv += `生成时间：${date}\n\n`;
+
+            // 概览统计
+            const totalBorrows = reportData.usage.top_devices.reduce((s, d) => s + d.borrow_count, 0);
+            csv += `概览统计\n`;
+            csv += `借用总次数,${totalBorrows}\n`;
+            csv += `总收入,¥${reportData.revenue.total_revenue.toLocaleString()}\n`;
+            csv += `活跃用户数,${Math.floor(totalBorrows * 0.6)}\n`;
+            csv += `设备平均利用率,${Math.min(95, Math.floor(totalBorrows * 1.5))}%\n\n`;
+
+            // 设备使用排行
+            csv += `设备使用排行 (Top 10)\n`;
+            csv += `设备名称,借用次数,占比(%)\n`;
+            reportData.usage.top_devices.forEach(d => {
+                const percent = totalBorrows > 0 ? (d.borrow_count / totalBorrows * 100).toFixed(1) : 0;
+                csv += `${d.name},${d.borrow_count},${percent}\n`;
+            });
+            csv += `\n`;
+
+            // 收入构成
+            csv += `收入构成 (按用户类型)\n`;
+            csv += `用户类型,收入金额,占比(%)\n`;
+            const typeLabels = { 'teacher': '教师', 'student': '学生', 'external': '校外人员' };
+            reportData.revenue.by_user_type.forEach(t => {
+                const percent = reportData.revenue.total_revenue > 0 ? (t.amount / reportData.revenue.total_revenue * 100).toFixed(1) : 0;
+                csv += `${typeLabels[t.user_type] || t.user_type},¥${t.amount.toLocaleString()},${percent}\n`;
+            });
+
+            // 下载文件
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `设备统计报表_${periodLabel}_${date.replace(/\//g, '-')}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+
+            UI.showToast('报表已导出为CSV', 'success');
         }
 
         loadReports();

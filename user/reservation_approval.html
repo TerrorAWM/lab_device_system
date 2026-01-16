@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>预约审批 - 管理后台</title>
+    <title>预约审批 - 实验室设备管理系统</title>
     <link href="../css/bootstrap.min.css" rel="stylesheet">
     <link href="../css/fontawesome/css/all.min.css" rel="stylesheet">
     <link href="../css/style.css" rel="stylesheet">
@@ -91,6 +91,29 @@
         </div>
     </div>
 
+    <!-- 批准模态框 -->
+    <div class="modal fade" id="approveModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">批准预约</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="approveId">
+                    <div class="mb-3">
+                        <label class="form-label">审批备注（可选）</label>
+                        <textarea class="form-control" id="approveRemark" rows="3" placeholder="请输入审批备注..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-success" id="confirmApproveBtn">确认批准</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- 驳回模态框 -->
     <div class="modal fade" id="rejectModal" tabindex="-1">
         <div class="modal-dialog">
@@ -121,11 +144,20 @@
     <script src="../js/ui.js"></script>
     <script src="../js/common.js"></script>
     <script>
-        // 初始化
-        CommonUI.init('reservation', true);
+        // 初始化 - 检查是否为device用户
+        const user = Auth.getUser();
+        if (!user || user.user_type !== 'device') {
+            UI.showToast('只有设备管理员可以访问此页面', 'error');
+            setTimeout(() => {
+                window.location.href = 'device_list.html';
+            }, 2000);
+            throw new Error('Unauthorized');
+        }
 
-        const admin = Auth.getUser(true);
+        CommonUI.init('reservation_approval');
+
         let currentRejectId = null;
+        let currentApproveId = null;
 
         const userTypeLabels = {
             'teacher': '教师',
@@ -143,7 +175,7 @@
         // 加载待审批列表
         async function loadReservations() {
             try {
-                const result = await API.get('reservation.php?action=pending', {}, true);
+                const result = await API.get('reservation.php?action=pending');
                 const list = document.getElementById('reservationList');
 
                 if (result.code === 0 && result.data.items) {
@@ -169,64 +201,17 @@
             list.innerHTML = items.map(r => {
                 const userTypeLabel = userTypeLabels[r.user_type] || r.user_type;
 
-                // 解析审批进度
-                let approvals = {};
-                if (r.approvals) {
-                    if (typeof r.approvals === 'string') {
-                        try {
-                            approvals = JSON.parse(r.approvals);
-                        } catch (e) {
-                            console.error('解析审批进度失败:', e);
-                        }
-                    } else if (typeof r.approvals === 'object') {
-                        approvals = r.approvals;
-                    }
-                }
-
-                // 生成审批链显示
-                let approvalChain = Object.entries(approvals).map(([role, data]) => {
-                    const roleName = roleLabels[role] || role;
-                    // 根据action判断状态
-                    let statusClass = 'waiting';
-                    let statusText = '等待';
-                    if (data.action === 'approve') {
-                        statusClass = 'approved';
-                        statusText = '已批';
-                    } else if (data.action === 'reject') {
-                        statusClass = 'rejected';
-                        statusText = '驳回';
-                    } else if (data.status === 'pending') {
-                        statusClass = 'pending';
-                        statusText = '待审';
-                    }
-                    return `<span class="approval-node ${statusClass}">${roleName}: ${statusText}</span>`;
-                }).join('');
-                
-                // 如果没有审批记录，根据用户类型显示预期审批流程
-                if (Object.keys(approvals).length === 0) {
-                    if (r.user_type === 'teacher') {
-                        approvalChain = '<span class="approval-node pending">设备管理员: 待审</span>';
-                    } else if (r.user_type === 'student') {
-                        approvalChain = '<span class="approval-node waiting">导师: 等待</span><span class="approval-node pending">设备管理员: 待审</span>';
-                    } else if (r.user_type === 'external') {
-                        approvalChain = '<span class="approval-node pending">设备管理员: 待审</span>';
-                    }
-                }
-
-                // 判断是否可以审批
-                const canApprove = checkCanApprove(r, admin.role, approvals);
-
-                // 生成操作按钮
-                let actions = '<span class="text-muted">-</span>';
-                if (canApprove) {
-                    actions = `
-                        <button class="btn btn-sm btn-success me-1" onclick="approve(${r.id})">
-                            <i class="fas fa-check"></i> 批准
-                        </button>
-                        <button class="btn btn-sm btn-danger" onclick="openRejectModal(${r.id})">
-                            <i class="fas fa-times"></i> 驳回
-                        </button>
-                    `;
+                // 生成审批进度显示
+                let approvalStatus = '';
+                if (r.user_type === 'student') {
+                    // 学生需要导师先批准，然后设备管理员审批
+                    approvalStatus = '<span class="approval-node approved">导师: 已批</span><span class="approval-node pending">设备管理员: 待审</span>';
+                } else if (r.user_type === 'teacher') {
+                    // 教师直接由设备管理员审批
+                    approvalStatus = '<span class="approval-node pending">设备管理员: 待审</span>';
+                } else if (r.user_type === 'external') {
+                    // 校外人员需要设备管理员审批（可能还有后续步骤）
+                    approvalStatus = '<span class="approval-node pending">设备管理员: 待审</span>';
                 }
 
                 return `
@@ -237,119 +222,25 @@
                         <td>${r.device_name || '-'}<br><small class="text-muted">${r.model || ''}</small></td>
                         <td>${r.reserve_date || '-'}<br><small class="text-muted">${r.time_slot || ''}</small></td>
                         <td><small>${r.purpose || '-'}</small></td>
-                        <td><div class="approval-chain">${approvalChain || '-'}</div></td>
-                        <td>${actions}</td>
+                        <td><div class="approval-chain">${approvalStatus}</div></td>
+                        <td>
+                            <button class="btn btn-sm btn-success me-1" onclick="openApproveModal(${r.id})">
+                                <i class="fas fa-check"></i> 批准
+                            </button>
+                            <button class="btn btn-sm btn-danger" onclick="openRejectModal(${r.id})">
+                                <i class="fas fa-times"></i> 驳回
+                            </button>
+                        </td>
                     </tr>
                 `;
             }).join('');
         }
 
-        function getStatusText(status) {
-            const map = {
-                'pending': '待审',
-                'approved': '已批',
-                'rejected': '驳回',
-                'waiting': '等待'
-            };
-            return map[status] || status;
-        }
-
-        // 检查校外人员是否已付款（用于设备管理员第二次确认）
-        function checkPaymentStatus(reservationId) {
-            // 这里可以通过API查询付款状态，暂时返回true
-            // 实际应该调用API检查
-            return true;
-        }
-
-        function checkCanApprove(reservation, adminRole, approvals) {
-            // 根据管理员角色和审批流程判断是否可以审批
-            const userType = reservation.user_type;
-
-            // 设备管理员：可以审批所有类型
-            if (adminRole === 'device') {
-                // 检查设备管理员是否已审批过
-                const deviceApproval = approvals['device'];
-                if (deviceApproval) {
-                    // 如果已审批过，检查是否是校外人员的第二次确认
-                    if (userType === 'external' && deviceApproval.action === 'approve') {
-                        // 校外人员第二次确认：需要负责人和财务都已批准
-                        const supervisorApproval = approvals['supervisor'];
-                        const financeApproval = approvals['finance'];
-                        // 检查是否已付款（通过检查是否有财务审批记录）
-                        if (supervisorApproval && supervisorApproval.action === 'approve' && 
-                            financeApproval && financeApproval.action === 'approve') {
-                            // 可以确认（第二次审批）
-                            return true;
-                        }
-                    }
-                    // 其他情况已审批过，不能再审批
-                    return false;
-                }
-
-                // 未审批过的情况
-                if (userType === 'teacher') {
-                    // 教师：设备管理员直接审批
-                    return true;
-                } else if (userType === 'student') {
-                    // 学生：需要导师先批准
-                    const advisorApproval = approvals['advisor'];
-                    return advisorApproval && advisorApproval.action === 'approve';
-                } else if (userType === 'external') {
-                    // 校外人员：设备管理员第一次审批（检查可用性）
-                    return true;
-                }
-                return false;
-            }
-
-            // 实验室负责人：只审批校外人员，且需要设备管理员已批准
-            if (adminRole === 'supervisor') {
-                if (userType !== 'external') return false;
-                const supervisorApproval = approvals['supervisor'];
-                const deviceApproval = approvals['device'];
-                // 负责人还未审批，且设备管理员已批准
-                return !supervisorApproval && deviceApproval && deviceApproval.action === 'approve';
-            }
-
-            // 财务：只审批校外人员，且需要设备管理员和负责人都已批准，并且已付款
-            if (adminRole === 'finance') {
-                if (userType !== 'external') return false;
-                const financeApproval = approvals['finance'];
-                const deviceApproval = approvals['device'];
-                const supervisorApproval = approvals['supervisor'];
-
-                // 财务还未审批
-                if (financeApproval) return false;
-                // 设备管理员和负责人都已批准
-                if (!deviceApproval || deviceApproval.action !== 'approve') return false;
-                if (!supervisorApproval || supervisorApproval.action !== 'approve') return false;
-
-                // 检查是否已付款（通过检查payment状态或财务审批前的状态）
-                // 这里假设如果到了财务审批步骤，说明已付款
-                return true;
-            }
-
-            return false;
-        }
-
-        async function approve(id) {
-            if (!confirm('确定要批准这个预约吗?')) return;
-
-            try {
-                // 根据需求文档，设备管理员审批时需要传递reservation_id
-                const result = await API.post('reservation.php?action=approve', { 
-                    reservation_id: id,
-                    remark: ''
-                }, true);
-                if (result.code === 0) {
-                    UI.showToast(result.message || '审批成功');
-                    loadReservations();
-                } else {
-                    UI.showToast(result.message, 'error');
-                }
-            } catch (error) {
-                console.error('审批失败:', error);
-                UI.showToast('网络请求失败', 'error');
-            }
+        function openApproveModal(id) {
+            currentApproveId = id;
+            document.getElementById('approveRemark').value = '';
+            const modal = new bootstrap.Modal(document.getElementById('approveModal'));
+            modal.show();
         }
 
         function openRejectModal(id) {
@@ -359,6 +250,31 @@
             modal.show();
         }
 
+        // 批准预约
+        document.getElementById('confirmApproveBtn').addEventListener('click', async () => {
+            const remark = document.getElementById('approveRemark').value.trim();
+
+            try {
+                const result = await API.post('reservation.php?action=approve', {
+                    reservation_id: currentApproveId,
+                    remark: remark
+                });
+
+                if (result.code === 0) {
+                    UI.showToast(result.message || '审批成功');
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('approveModal'));
+                    modal.hide();
+                    loadReservations();
+                } else {
+                    UI.showToast(result.message, 'error');
+                }
+            } catch (error) {
+                console.error('审批失败:', error);
+                UI.showToast('网络请求失败', 'error');
+            }
+        });
+
+        // 驳回预约
         document.getElementById('confirmRejectBtn').addEventListener('click', async () => {
             const reason = document.getElementById('rejectReason').value.trim();
 
@@ -371,7 +287,7 @@
                 const result = await API.post('reservation.php?action=reject', {
                     reservation_id: currentRejectId,
                     reason: reason
-                }, true);
+                });
 
                 if (result.code === 0) {
                     UI.showToast('已驳回');

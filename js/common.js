@@ -40,7 +40,8 @@ const CommonUI = {
             const userTypes = {
                 'teacher': { text: '教师', class: 'bg-indigo' },
                 'student': { text: '学生', class: 'bg-info' },
-                'external': { text: '校外人员', class: 'bg-orange' }
+                'external': { text: '校外人员', class: 'bg-orange' },
+                'device': { text: '设备管理员', class: 'bg-primary' }
             };
             const typeInfo = userTypes[user.user_type] || { text: '用户', class: 'bg-secondary' };
             roleText = typeInfo.text;
@@ -76,14 +77,25 @@ const CommonUI = {
                 { id: 'reservation', href: 'reservation.html', icon: 'fa-calendar-check', text: '预约审批' },
                 { id: 'borrow', href: 'borrow.html', icon: 'fa-hand-holding', text: '借用管理' },
                 { id: 'payment', href: 'payment.html', icon: 'fa-credit-card', text: '收费管理' },
+                { id: 'reports', href: 'reports.html', icon: 'fa-chart-bar', text: '统计报表' },
                 { id: 'user', href: 'user.html', icon: 'fa-users', text: '用户管理' }
             ];
 
             // 根据角色过滤权限 (简单实现)
-            if (user.role === 'device') {
-                menuItems = menuItems.filter(item => ['dashboard', 'device', 'borrow'].includes(item.id));
-            } else if (user.role === 'finance') {
-                menuItems = menuItems.filter(item => ['dashboard', 'payment'].includes(item.id));
+            // 调试信息：检查用户角色
+            if (!user || !user.role) {
+                console.warn('警告：管理员用户对象缺少role字段', user);
+            }
+            
+            if (user && user.role === 'device') {
+                menuItems = menuItems.filter(item => ['dashboard', 'device', 'borrow', 'reservation', 'reports'].includes(item.id));
+                console.log('Device管理员菜单已过滤，包含预约审批');
+            } else if (user && user.role === 'finance') {
+                menuItems = menuItems.filter(item => ['dashboard', 'payment', 'reports'].includes(item.id));
+            } else if (user && user.role === 'supervisor') {
+                // supervisor角色显示所有菜单，不需要过滤
+            } else {
+                console.warn('未知的管理员角色:', user?.role);
             }
         } else {
             menuItems = [
@@ -98,6 +110,11 @@ const CommonUI = {
             if (user.user_type === 'teacher') {
                 menuItems.push({ id: 'student_approval', href: 'student_approval.html', icon: 'fa-clipboard-check', text: '导师审批' });
                 menuItems.push({ id: 'students', href: 'students.html', icon: 'fa-user-graduate', text: '学生管理' });
+            }
+
+            // Device管理员额外菜单
+            if (user.user_type === 'device') {
+                menuItems.push({ id: 'reservation_approval', href: 'reservation_approval.html', icon: 'fa-check-circle', text: '预约审批' });
             }
         }
 

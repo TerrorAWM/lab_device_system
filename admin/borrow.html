@@ -100,16 +100,19 @@
                     `;
                 }
 
+                const userName = item.real_name || item.user_name || '未知用户';
+                const userUsername = item.username || item.user_id || '';
+
                 return `
                     <tr>
                         <td>
-                            <div class="fw-bold">${item.real_name}</div>
-                            <div class="small text-muted">${item.username}</div>
+                            <div class="fw-bold">${userName}</div>
+                            ${userUsername ? `<div class="small text-muted">${userUsername}</div>` : ''}
                         </td>
-                        <td>${item.device_name}</td>
-                        <td>${item.borrow_date}</td>
-                        <td>${item.time_slot}</td>
-                        <td>${item.actual_return_time || '-'}</td>
+                        <td>${item.device_name || '-'}</td>
+                        <td>${item.borrow_date || '-'}</td>
+                        <td>${item.time_slot || '-'}</td>
+                        <td>${item.actual_return_time || item.actual_return || '-'}</td>
                         <td><span class="badge ${statusClass}">${statusText}</span></td>
                         <td>${actions}</td>
                     </tr>
@@ -122,14 +125,17 @@
             if (!confirm('确定要确认该设备的归还吗？')) return;
 
             try {
-                const result = await API.post('borrow.php?action=confirm_return', { id }, true);
+                const result = await API.post('borrow.php?action=confirm_return', { 
+                    borrow_id: id 
+                }, true);
                 if (result.code === 0) {
-                    UI.showToast('归还确认成功');
+                    UI.showToast(result.message || '归还确认成功');
                     loadBorrows();
                 } else {
                     UI.showToast(result.message, 'error');
                 }
             } catch (error) {
+                console.error('确认归还失败:', error);
                 UI.showToast('网络请求失败', 'error');
             }
         }

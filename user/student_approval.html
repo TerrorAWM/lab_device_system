@@ -110,7 +110,7 @@
 
         // 加载申请列表
         async function loadApplications() {
-            const result = await API.get('reservation.php?action=teacher_list');
+            const result = await API.get('approval.php');
             const list = document.getElementById('applicationList');
 
             if (result.code === 0) {
@@ -158,9 +158,9 @@
             if (!confirm('确定要批准该申请吗？')) return;
 
             try {
-                const result = await API.post('reservation.php?action=teacher_approve', {
-                    id: id,
-                    status: 'approved'
+                const result = await API.post('approval.php?action=approve', {
+                    reservation_id: id,
+                    remark: '导师批准'
                 });
 
                 if (result.code === 0) {
@@ -197,10 +197,9 @@
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 处理中...';
 
             try {
-                const result = await API.post('reservation.php?action=teacher_approve', {
-                    id: parseInt(id),
-                    status: 'rejected',
-                    reject_reason: reason
+                const result = await API.post('approval.php?action=reject', {
+                    reservation_id: parseInt(id),
+                    reason: reason
                 });
 
                 if (result.code === 0) {
